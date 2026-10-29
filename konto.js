@@ -58,6 +58,7 @@ function render() {
   const head = `<div class="bar"><strong>Moje skrzydła · ${who}</strong><div class="links">
       ${VIEW === "wings" || PROFILE.must_change ? "" : '<button type="button" class="lnk" data-a="wings">Moje skrzydła</button>'}
       ${PROFILE.must_change ? "" : '<button type="button" class="lnk" data-a="password">Zmień hasło</button>'}
+      ${!PROFILE.must_change && USER.app_metadata && USER.app_metadata.role === "admin" ? '<a class="lnk" href="admin.html">Panel admina</a>' : ""}
       <button type="button" class="lnk" data-a="logout">Wyloguj</button></div></div>`;
   if (VIEW === "password") {
     box.innerHTML = head + `

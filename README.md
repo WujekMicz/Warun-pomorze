@@ -31,6 +31,12 @@
 
 ## Konta
 
+**W przeglądarce:** zaloguj się na stronie, potem w panelu konta kliknij **Panel admina** (`admin.html`). Możesz tam zakładać konta (hasło startowe pokazuje się raz, z przyciskiem Kopiuj), resetować hasła, blokować i usuwać konta. Panel wywołuje funkcję Supabase `supabase/functions/admin`, która ma klucz serwisowy i działa tylko dla kont z rolą admina (`python3 admin.py make-admin <login>`, potem wyloguj się i zaloguj ponownie).
+
+Wdrożenie funkcji po zmianie `index.ts`: Supabase → Edge Functions → admin → edytuj i Deploy, z wyłączonym „Verify JWT” (funkcja sama sprawdza zalogowanego użytkownika).
+
+**Z terminala:**
+
 ```bash
 python3 admin.py add jan --name "Jan Kowalski"   # wypisuje hasło startowe – przekaż je Janowi
 python3 admin.py reset jan                       # nowe hasło startowe

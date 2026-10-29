@@ -34,7 +34,7 @@ jobs:
         run: |
           python build.py fetch met
           mkdir -p _site
-          cp index.html konto.js config.js _site/
+          cp index.html admin.html konto.js config.js _site/
           python build.py build met _site/data.js
       - name: Ping Supabase (darmowy projekt usypia po tygodniu bez ruchu)
         continue-on-error: true

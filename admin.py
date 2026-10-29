@@ -11,6 +11,7 @@ Użycie:
   python3 admin.py disable <login> | enable <login>
   python3 admin.py delete <login>                         # usuwa konto razem z jego skrzydłami
   python3 admin.py list
+  python3 admin.py make-admin <login>                     # dostęp do panelu admin.html (wyloguj się i zaloguj ponownie)
 """
 import argparse
 import json
@@ -98,7 +99,7 @@ def main():
     p = argparse.ArgumentParser(description="Warun – konta w Supabase")
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("add"); s.add_argument("login"); s.add_argument("--name", default="")
-    for c in ("reset", "disable", "enable", "delete"):
+    for c in ("reset", "disable", "enable", "delete", "make-admin"):
         sub.add_parser(c).add_argument("login")
     sub.add_parser("list")
     a = p.parse_args()
@@ -131,6 +132,11 @@ def main():
             return
         call("DELETE", "/auth/v1/admin/users/" + u["id"])
         print("Usunięto", a.login)
+    elif a.cmd == "make-admin":
+        u = find(a.login)
+        meta = dict(u.get("app_metadata") or {}); meta["role"] = "admin"
+        call("PUT", "/auth/v1/admin/users/" + u["id"], {"app_metadata": meta})
+        print("Konto", a.login, "ma teraz dostęp do panelu admina. Wyloguj się i zaloguj ponownie na stronie.")
     elif a.cmd == "list":
         dom = "@" + login_domain()
         for u in sorted(all_users(), key=lambda x: x.get("email") or ""):
@@ -138,7 +144,8 @@ def main():
             name = (u.get("user_metadata") or {}).get("display_name", "")
             last = (u.get("last_sign_in_at") or "–")[:16].replace("T", " ")
             off = " (wyłączone)" if u.get("banned_until") else ""
-            print("%-22s %-22s ostatnio: %s%s" % (login, name, last, off))
+            adm = " [admin]" if (u.get("app_metadata") or {}).get("role") == "admin" else ""
+            print("%-22s %-22s ostatnio: %s%s%s" % (login, name, last, off, adm))
 
 
 if __name__ == "__main__":
