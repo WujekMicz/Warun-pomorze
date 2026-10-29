@@ -273,13 +273,19 @@ const SITE={chlapowo:{min:4},jastrzebia:{min:4},stegna:{min:6},krynica:{min:6},d
   elblag:{min:2},borsk:{min:1,max:5,gust:7}};
 for(const s of SPOTS)s.site=SITE[s.id];
 /* EN-A i EN-B mają progi dobrane osobno dla każdej miejscówki (spot.A, spot.B). Pozostałe skrzydła: min/max/porywy/różnica. */
+/* Parakite: małe, szybkie skrzydło do mocnego, GŁADKIEGO wiatru – progi osobno dla każdej miejscówki (szacunkowe).
+   [min, max, poryw maks., różnica poryw−średni] w m/s; brak wpisu = Parakite tu nie oceniamy (termika). */
+const PARAKITE={chlapowo:[6,12,14.5,3],jastrzebia:[6,12,14.5,3],debina:[6,12,14.5,3],stegna:[7,12,14.5,3],krynica:[7,12,14.5,3],
+  mrzezino:[5,8,10.5,3],nowemarzy:[6,10,12.5,3],orlowo:[6,12,14.5,3],mechelinki:[6,12,14.5,3],nowe:[6,10,12.5,3],elblag:[3,11,13.5,4]};
+/* min/max/gust/spread Parakite = wartości z klifów, używane tylko przy „Kopiuj z” w formularzu własnego skrzydła */
 const PRESETS=[{id:"A",name:"EN-A"},{id:"B",name:"EN-B"},
-  {id:"parakite",name:"Parakite",min:5,max:10,gust:12,spread:4,draft:true}];
+  {id:"parakite",name:"Parakite",min:6,max:12,gust:14.5,spread:3,perSpot:true}];
 let MY=[];
 const allWings=()=>PRESETS.concat(MY);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function limitsFor(spot,w){
   if(w.id==="A"||w.id==="B")return spot[w.id];
+  if(w.id==="parakite"){const p=PARAKITE[spot.id];return p?{min:p[0],max:p[1],gust:p[2],spread:p[3]}:null;}
   const s=spot.site;  // bezpieczniejsza wartość z obu
   return {min:Math.max(s.min,w.min),max:Math.min(s.max??Infinity,w.max),gust:Math.min(s.gust??Infinity,w.gust),spread:w.spread};
 }
@@ -348,6 +354,7 @@ const nowTs=Date.now()/1000;const nowLp=localParts(nowTs);
 function dayKeys(){const out=[];for(let i=0;i<7;i++){const d=new Date(Date.UTC(nowLp.y,nowLp.m-1,nowLp.d+i));out.push(d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"));}return out;}
 function evalDay(spot,cls,series,key,idx){
   const di=dayInfo(key);const sn=sun(di.y,di.m,di.d,spot.lat,spot.lon);
+  if(!limitsFor(spot,cls))return {status:"none",win:null,hours:[],live:[],reasons:[esc(cls.name)+" nie do termiki – tu nie oceniamy"],sun:sn,any6:false,anyEst:false,di,na:true};
   const hours=[];
   for(let h=8;h<=18;h++){
     if(h+0.5<sn.rise||h+0.5>sn.set)continue;
@@ -461,25 +468,26 @@ function renderDetail(){
   }
   idx=KEYS.indexOf(k);
   const ev=evalDay(spot,WING,SERIES[spot.id],k,idx);const c=CONF(idx);
-  const L=limitsFor(spot,WING);
+  const L=limitsFor(spot,WING)||{min:null,max:null,gust:null};
   const live=ev.live;const avg=a=>a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
   const src=ev.win?live.filter(x=>x.h>=ev.win.start&&x.h<ev.win.end):live;
   const dirs=src.map(x=>x.r.dir);const mws=avg(src.map(x=>x.r.ws));const mg=src.length?Math.max(...src.map(x=>x.r.gust)):null;
   const meanDir=dirs.length?(()=>{let sx=0,sy=0;for(const d of dirs){sx+=Math.sin(d*Math.PI/180);sy+=Math.cos(d*Math.PI/180);}return (Math.atan2(sx,sy)*180/Math.PI+360)%360;})():null;
   const fmtH=x=>{const hh=Math.floor(x),mm=Math.round((x-hh)*60);return hh+":"+String(mm).padStart(2,"0");};
   let html=`<div class="dhead"><div><span class="eyebrow">${spot.type} · ${i18day(ev.di,idx)}</span><h2>${spot.name}</h2></div>
-    <span class="verdict ${ev.status}">${SYM[ev.status]} ${VERD[ev.status]}${ev.win?" "+ev.win.start+":00–"+ev.win.end+":00":""}</span></div>`;
+    <span class="verdict ${ev.status}">${SYM[ev.status]} ${ev.na?"Nie dotyczy":VERD[ev.status]}${ev.win?" "+ev.win.start+":00–"+ev.win.end+":00":""}</span></div>`;
   html+=`<div class="facts">
     <div class="fact"><span class="eyebrow">${ev.win?"W oknie":"W ciągu dnia"}</span><div class="v">${meanDir==null?"–":dirName(meanDir)+" "+Math.round(meanDir)+"°"}</div></div>
     <div class="fact"><span class="eyebrow">Średni / max poryw</span><div class="v">${f1(mws)} / ${f1(mg)} m/s</div></div>
     <div class="fact"><span class="eyebrow">Działa przy</span><div class="v">${spot.dir?dirName(spot.dir[0])+"–"+dirName(spot.dir[1])+" ("+spot.dir[0]+"–"+spot.dir[1]+"°)":"każdym kierunku"}</div></div>
-    <div class="fact"><span class="eyebrow">Progi ${esc(WING.name)}${WING.draft?" (wstępne)":""}</span><div class="v">${f1(L.min)}–${f1(L.max)} m/s, por. ${f1(L.gust)}</div></div>
+    <div class="fact"><span class="eyebrow">Progi ${esc(WING.name)}${WING.perSpot?" (szacunkowe)":""}</span><div class="v">${L.min==null?"nie dotyczy":`${f1(L.min)}–${f1(L.max)} m/s, por. ${f1(L.gust)}`}</div></div>
     <div class="fact"><span class="eyebrow">Słońce</span><div class="v">${fmtH(ev.sun.rise)}–${fmtH(ev.sun.set)}</div></div>
     <div class="fact"><span class="eyebrow">Pewność</span><div class="v">${c[0]}${ev.anyEst?", porywy szac.":""}</div></div>
   </div>`;
   if(ev.reasons.length&&ev.status!=="go"){html+=`<div><span class="eyebrow">Co przeszkadza</span><ul class="reasons">${ev.reasons.slice(0,4).map(r=>"<li>"+r+"</li>").join("")}</ul></div>`;}
   if(ev.hours.length)html+=`<div class="chart">${chartSVG(spot,ev)}</div>`;
   html+=placeLinks(spot.id)+`<div class="notes">${spot.note}</div>`;
+  if(WING.id==="parakite"&&PARAKITE[spot.id])html+=`<div class="notes">Parakite: tylko gładki, laminarny wiatr. Przy porywach i termice skrzydło zachowuje się nieprzewidywalnie – progi są szacunkowe.</div>`;
   if(ev.hours.length){
     html+=`<details><summary>Tabela godzinowa</summary><div class="chart"><table class="hours"><thead><tr><th>Godz.</th><th>Kier.</th><th>Średni</th><th>Poryw</th><th>Opad</th><th>Chm.</th><th>Uwagi</th></tr></thead><tbody>`;
     for(const x of ev.hours){const cl=x.s===0?"go":x.s===1?"warn":"no";
@@ -496,7 +504,7 @@ function setWing(id,remember){
   renderWings();renderGrid();renderDetail();}
 function renderWings(){
   const box=document.getElementById("wings");
-  box.innerHTML=allWings().map(w=>`<button type="button" data-c="${esc(w.id)}" aria-pressed="${w.id===WING.id}"${w.id==="A"||w.id==="B"?"":` title="${esc(w.name)}: ${f1(w.min)}–${f1(w.max)} m/s, porywy do ${f1(w.gust)}${w.draft?" – progi wstępne":""}"`}>${esc(w.name)}</button>`).join("");
+  box.innerHTML=allWings().map(w=>`<button type="button" data-c="${esc(w.id)}" aria-pressed="${w.id===WING.id}"${w.id==="A"||w.id==="B"?"":w.perSpot?` title="${esc(w.name)}: progi osobno dla każdej miejscówki (szacunkowe)"`:` title="${esc(w.name)}: ${f1(w.min)}–${f1(w.max)} m/s, porywy do ${f1(w.gust)}"`}>${esc(w.name)}</button>`).join("");
   box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setWing(b.dataset.c,true)));}
 /* konto.js podaje tu skrzydła zalogowanego użytkownika */
 window.WARUN={presets:PRESETS,setOwnWings(list){MY=list;setWing(allWings().some(w=>w.id===WANT)?WANT:WING.id,false);}};

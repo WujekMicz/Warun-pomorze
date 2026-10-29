@@ -7,8 +7,8 @@
 ## Jak liczone są progi
 
 - **EN-A i EN-B:** progi dobrane osobno dla każdej miejscówki, jak w oryginale.
-- **Parakite i własne skrzydła:** bierzemy progi skrzydła, ale miejscówka ma własne wymagania (`SITE` w `index.html`) i zawsze liczy się bezpieczniejsza wartość. Przykład: na wydmie w Stegnie minimum to 6 m/s, nawet jeśli skrzydło startuje od 4. W Borsku hol ma limit 5 m/s i porywy do 7 m/s.
-- **Progi Parakite (5–10 m/s, porywy do 12, różnica 4) są wstępne.** Na stronie mają dopisek „(wstępne)”. Popraw je w `PRESETS` w `index.html`.
+- **Własne skrzydła:** bierzemy progi skrzydła, ale miejscówka ma własne wymagania (`SITE` w `index.html`) i zawsze liczy się bezpieczniejsza wartość. Przykład: na wydmie w Stegnie minimum to 6 m/s, nawet jeśli skrzydło startuje od 4. W Borsku hol ma limit 5 m/s i porywy do 7 m/s.
+- **Parakite:** progi osobno dla każdej miejscówki (szacunkowe, ze starej wersji apki), w `PARAKITE` w `index.html` – np. klify 6–12 m/s z porywami do 14,5, wydmy od 7 m/s. W Borsku (termika) Parakite nie jest oceniane.
 
 ## Konfiguracja (raz)
 
