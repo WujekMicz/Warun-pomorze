@@ -17,6 +17,7 @@ const COPY = {A: {min: 4, max: 7, gust: 8.5, spread: 3}, B: {min: 4, max: 8, gus
 let USER = null, PROFILE = null, WINGS = [];
 let VIEW = "idle";   // idle | login | password | wings
 let EDIT = null;     // id edytowanego skrzydła albo "new"
+let ASK_DEL = null;  // id skrzydła czekającego na potwierdzenie usunięcia
 let MSG = null;      // {kind, text}
 
 function setMsg(kind, text) { MSG = kind ? {kind, text} : null; }
@@ -72,12 +73,15 @@ function render() {
     return;
   }
   if (VIEW !== "wings") { box.innerHTML = head + msgHtml(); return; }
-  const rows = WINGS.map(w => EDIT === w.id ? `<tr><td colspan="6">${formHtml(w)}</td></tr>` : `
-    <tr><td><strong>${esc(w.name)}</strong></td><td class="mono">${f1(w.min)}–${f1(w.max)}</td><td class="mono">${f1(w.gust)}</td>
-      <td class="mono">${f1(w.spread)}</td><td class="acts"><button type="button" class="lnk" data-a="edit" data-id="${esc(w.id)}">Edytuj</button>
-      &nbsp; <button type="button" class="lnk" data-a="del" data-id="${esc(w.id)}" style="color:var(--no)">Usuń</button></td></tr>`).join("");
+  const rows = WINGS.map(w => EDIT === w.id ? `<tr><td colspan="3">${formHtml(w)}</td></tr>` : `
+    <tr><td><strong>${esc(w.name)}</strong></td>
+      <td class="mono" style="font-size:.8rem">${f1(w.min)}–${f1(w.max)} m/s<br>por. ${f1(w.gust)} · różn. ${f1(w.spread)}</td><td class="acts">${ASK_DEL === w.id
+        ? `Usunąć? <button type="button" class="lnk" data-a="delYes" data-id="${esc(w.id)}" style="color:var(--no)">Tak</button>
+           &nbsp; <button type="button" class="lnk" data-a="delNo">Nie</button>`
+        : `<button type="button" class="lnk" data-a="edit" data-id="${esc(w.id)}">Edytuj</button>
+           &nbsp; <button type="button" class="lnk" data-a="del" data-id="${esc(w.id)}" style="color:var(--no)">Usuń</button>`}</td></tr>`).join("");
   box.innerHTML = head + `
-    ${WINGS.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Skrzydło</th><th>Wiatr m/s</th><th>Porywy do</th><th>Różnica poryw − średni</th><th></th></tr></thead>
+    ${WINGS.length ? `<div style="overflow-x:auto"><table><thead><tr><th>Skrzydło</th><th>Progi</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table></div>` : '<span class="muted" style="font-size:.88rem">Nie masz jeszcze własnych skrzydeł. Gotowe EN-A, EN-B i Parakite są zawsze dostępne.</span>'}
     ${EDIT === "new" ? formHtml(null) : '<div><button type="button" class="btn ghost" data-a="new">+ Dodaj skrzydło</button></div>'}
     ${msgHtml()}
@@ -129,11 +133,16 @@ box.addEventListener("click", async e => {
   else if (a === "edit") EDIT = b.dataset.id;
   else if (a === "cancelEdit") EDIT = null;
   else if (a === "logout") { await SB.auth.signOut(); VIEW = "idle"; return loadUser(); }
-  else if (a === "del") {
-    const w = WINGS.find(x => x.id === b.dataset.id);
-    if (!w || !confirm(`Usunąć skrzydło „${w.name}”?`)) return;
-    const r = await SB.from("wings").delete().eq("id", w.dbId);
-    if (r.error) setMsg("err", r.error.message); else return loadUser();
+  else if (a === "del") ASK_DEL = b.dataset.id;
+  else if (a === "delNo") ASK_DEL = null;
+  else if (a === "delYes") {
+    // Potwierdzenie w tabeli zamiast confirm() – okienka bywają blokowane przez przeglądarkę.
+    const w = WINGS.find(x => x.id === b.dataset.id); ASK_DEL = null;
+    if (!w) return render();
+    const r = await SB.from("wings").delete().eq("id", w.dbId).select("id");
+    if (r.error) setMsg("err", "Nie udało się usunąć: " + r.error.message);
+    else if (!r.data || !r.data.length) setMsg("err", "Nie udało się usunąć – odśwież stronę i spróbuj ponownie.");
+    else { setMsg("ok", `Usunięto „${w.name}”.`); return loadUser(); }
   }
   render();
   const first = box.querySelector("form input:not([hidden])"); if (first && a !== "logout") first.focus();
