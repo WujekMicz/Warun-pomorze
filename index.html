@@ -370,7 +370,7 @@ function renderGrid(){
 
 function chartSVG(spot,ev){
   const hs=ev.hours;if(!hs.length)return "";
-  const L=limitsFor(spot,WING);const W=640,H=250,pl=34,pr=12,top=36,bot=56;
+  const L=limitsFor(spot,WING);const W=640,H=266,pl=34,pr=12,top=36,bot=72;
   const maxY=Math.max(12,Math.ceil(Math.max(...hs.map(x=>x.r.gust||0))+1));
   const n=hs.length,step=(W-pl-pr)/n;
   const X=i=>pl+step*(i+0.5),Y=v=>top+(H-top-bot)*(1-v/maxY);
@@ -389,6 +389,12 @@ function chartSVG(spot,ev){
   s+=line("gust",true,"var(--muted)")+line("ws",false,"var(--ink)");
   hs.forEach((x,i)=>{s+=`<circle cx="${X(i)}" cy="${Y(x.r.ws)}" r="3.2" fill="var(--ink)"/>`;
     s+=`<circle cx="${X(i)}" cy="${Y(x.r.gust)}" r="2.6" fill="${x.r.gustEst?"var(--surface)":"var(--muted)"}" stroke="var(--muted)" stroke-width="1"/>`;});
+  // idealny kierunek (środek zakresu miejscówki): blady kontur za strzałką każdej godziny
+  const ARR="M0,-9 L5,4 L0,1 L-5,4 Z";
+  const ideal=spot.dir?(spot.dir[0]+(((spot.dir[1]-spot.dir[0])%360+360)%360)/2)%360:null;
+  if(ideal!=null){
+    hs.forEach((x,i)=>{s+=`<g transform="translate(${X(i)},16) rotate(${ideal+180})"><path d="${ARR}" fill="none" stroke="var(--accent)" stroke-width="1.1" stroke-linejoin="round" opacity=".45"/></g>`;});
+  }
   // strzałki kierunku (dokąd wieje)
   hs.forEach((x,i)=>{const dc=dirCheck(spot,x.r.dir);const col=dc===0?"var(--go)":dc===1?"var(--warn)":"var(--no)";
     s+=`<g transform="translate(${X(i)},16) rotate(${x.r.dir+180})"><path d="M0,-9 L5,4 L0,1 L-5,4 Z" fill="${col}"/></g>`;});
@@ -396,7 +402,8 @@ function chartSVG(spot,ev){
   hs.forEach((x,i)=>{const col=x.s===0?"var(--go)":x.s===1?"var(--warn)":"var(--no)";
     s+=`<rect x="${X(i)-step/2+1}" y="${H-bot+8}" width="${step-2}" height="8" rx="2" fill="${col}" fill-opacity="${x.past?0.25:0.9}"/>`;
     s+=`<text x="${X(i)}" y="${H-bot+32}" text-anchor="middle">${x.h}:00</text>`;});
-  s+=`<text x="${pl}" y="${H-6}">— średni   - - porywy${hs.some(x=>x.r.gustEst)?" (puste kółko = szacowane)":""}   ▮ opad   ▲ kierunek: dokąd wieje</text>`;
+  s+=`<text x="${pl}" y="${H-(ideal!=null?6:22)}">— średni   - - porywy${hs.some(x=>x.r.gustEst)?" (puste kółko = szacowane)":""}   ▮ opad   ▲ kierunek: dokąd wieje</text>`;
+  if(ideal!=null)s+=`<g transform="translate(${pl+5},${H-26}) rotate(${ideal+180}) scale(.8)"><path d="${ARR}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/></g><text x="${pl+14}" y="${H-22}">idealny kierunek: ${dirName(ideal)} ${Math.round(ideal)}° (kontur za strzałkami)</text>`;
   return s+"</svg>";
 }
 
@@ -467,4 +474,5 @@ setWing(WANT,false);
 
 
 <script src="konto.js"></script>
+<script src="licznik.js"></script>
 </body></html>

@@ -55,6 +55,20 @@ td.acts .row{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:flex-end}
 .tag{display:inline-block;font-family:var(--font-data);font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;padding:1px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted);margin:2px 4px 0 0}
 .tag.admin{border-color:var(--accent);color:var(--accent)} .tag.off{border-color:var(--no);color:var(--no)} .tag.tmp{border-color:var(--warn);color:var(--warn)}
 .sub{font-size:.78rem;color:var(--muted)}
+/* ruch */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.tile .v{font-family:var(--font-display);font-weight:700;font-size:1.9rem;line-height:1.05}
+.chartbox{position:relative}
+.chartbox svg{display:block;width:100%;height:auto}
+.chartbox text{font-family:var(--font-data);font-size:10px;fill:var(--muted)}
+.chartbox .bar{fill:var(--accent)}
+.chartbox .col:hover .bar,.chartbox .col:focus .bar{fill:var(--ink)}
+.chartbox .col{outline:none;cursor:default}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:6px 10px;font-size:.8rem;box-shadow:0 2px 10px rgba(0,0,0,.12);white-space:nowrap;transform:translate(-50%,-100%)}
+.tip b{font-family:var(--font-data);font-weight:500}
+details summary{cursor:pointer;color:var(--accent);font-size:.88rem}
 </style>
 </head><body>
 <div class="wrap">
@@ -87,6 +101,20 @@ td.acts .row{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:flex-end}
           <thead><tr><th>Login</th><th>Ostatnio</th><th></th></tr></thead>
           <tbody id="users"><tr><td colspan="3" class="muted">Wczytuję…</td></tr></tbody>
         </table></div>
+      </section>
+
+      <section class="card" id="ruch">
+        <h2>Ruch na stronie</h2>
+        <div id="ruchMsg" hidden></div>
+        <div class="tiles" id="tiles"></div>
+        <div>
+          <span class="eyebrow">Osoby dziennie – ostatnie 30 dni</span>
+          <div class="chartbox" id="chart"></div>
+        </div>
+        <details><summary>Tabela dzienna</summary><div style="overflow-x:auto"><table>
+          <thead><tr><th>Dzień</th><th>Osoby</th><th>Wejścia</th><th>Z telefonu</th><th>Zalogowani</th></tr></thead>
+          <tbody id="ruchTab"></tbody></table></div></details>
+        <span class="sub">Liczone są otwarcia strony głównej. „Osoba” to jedna przeglądarka – ten sam pilot na telefonie i komputerze liczy się dwa razy. Bez ciasteczek i danych osobowych.</span>
       </section>
     </div>
   </div>
@@ -182,6 +210,69 @@ $("add").addEventListener("submit", async e => {
   finally { btn.disabled = false; }
 });
 
+/* ---------- ruch ---------- */
+const DAYS = 30;
+const isoDay = d => d.toLocaleDateString("sv-SE", {timeZone: "Europe/Warsaw"});   // YYYY-MM-DD
+const label = iso => { const [y, m, d] = iso.split("-"); return +d + "." + m; };
+
+async function loadTraffic() {
+  const [st, sm] = await Promise.all([SB.rpc("visit_stats", {days: DAYS}), SB.rpc("visit_summary")]);
+  if (st.error || sm.error) {
+    const e = (st.error || sm.error).message;
+    show($("ruchMsg"), "err", /visit_|schema cache|does not exist/.test(e)
+      ? "Licznik nie jest jeszcze włączony – uruchom supabase/licznik.sql w SQL Editor." : esc(e));
+    return;
+  }
+  const s = sm.data[0] || {visitors_7: 0, visitors_30: 0, views_today: 0, views_total: 0};
+  $("tiles").innerHTML = [["Osoby – 7 dni", s.visitors_7], ["Osoby – 30 dni", s.visitors_30], ["Wejścia dziś", s.views_today], ["Wejścia łącznie", s.views_total]]
+    .map(([k, v]) => `<div class="tile"><span class="eyebrow">${k}</span><div class="v">${v}</div></div>`).join("");
+  const by = new Map(st.data.map(r => [r.day, r]));
+  const rows = [];
+  for (let i = DAYS - 1; i >= 0; i--) {
+    const iso = isoDay(new Date(Date.now() - i * 864e5));
+    const r = by.get(iso) || {};
+    rows.push({day: iso, visitors: +r.visitors || 0, views: +r.views || 0, mobile: +r.mobile || 0, logged: +r.logged || 0});
+  }
+  renderChart(rows);
+  $("ruchTab").innerHTML = rows.slice().reverse().filter(r => r.views)
+    .map(r => `<tr><td class="mono">${label(r.day)}</td><td class="mono">${r.visitors}</td><td class="mono">${r.views}</td><td class="mono">${r.mobile}</td><td class="mono">${r.logged}</td></tr>`).join("")
+    || '<tr><td colspan="5" class="muted">Brak wejść w ostatnich 30 dniach.</td></tr>';
+}
+
+function renderChart(rows) {
+  const W = 600, H = 170, pl = 26, pr = 6, top = 10, bot = 22;
+  const max = Math.max(4, ...rows.map(r => r.visitors));
+  const step = Math.ceil(max / 4), yMax = step * 4;
+  const cw = (W - pl - pr) / rows.length, bw = Math.max(2, cw - 2);   // 2 px przerwy między słupkami
+  const Y = v => top + (H - top - bot) * (1 - v / yMax);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Osoby dziennie w ostatnich 30 dniach">`;
+  for (let v = 0; v <= yMax; v += step) {
+    s += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="${v ? .6 : 1}"/>`
+      + `<text x="${pl - 5}" y="${Y(v) + 3}" text-anchor="end">${v}</text>`;
+  }
+  rows.forEach((r, i) => {
+    const x = pl + i * cw + 1, y = Y(r.visitors), h = Y(0) - y, rad = Math.min(4, h, bw / 2);
+    // słupek z zaokrągloną górą, przy podstawie prosty
+    const bar = h > 0 ? `<path class="bar" d="M${x},${Y(0)} V${y + rad} Q${x},${y} ${x + rad},${y} H${x + bw - rad} Q${x + bw},${y} ${x + bw},${y + rad} V${Y(0)} Z"/>` : "";
+    s += `<g class="col" tabindex="0" data-i="${i}"><rect x="${pl + i * cw}" y="${top}" width="${cw}" height="${H - top - bot}" fill="transparent"/>${bar}</g>`;
+    if (i % 7 === (rows.length - 1) % 7) s += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${label(r.day)}</text>`;
+  });
+  $("chart").innerHTML = s + "</svg>";
+  const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; $("chart").appendChild(tip);
+  const svg = $("chart").querySelector("svg");
+  const showTip = g => {
+    const r = rows[+g.dataset.i], box = svg.getBoundingClientRect(), k = box.width / W;
+    tip.innerHTML = `<strong>${label(r.day)}</strong><br>osoby <b>${r.visitors}</b> · wejścia <b>${r.views}</b><br>z telefonu <b>${r.mobile}</b> · zalogowani <b>${r.logged}</b>`;
+    tip.style.left = Math.min(Math.max((pl + (+g.dataset.i + .5) * cw) * k, 80), box.width - 80) + "px";
+    tip.style.top = Math.max(Y(r.visitors) * k - 6, 50) + "px"; tip.hidden = false;
+  };
+  svg.querySelectorAll(".col").forEach(g => {
+    g.addEventListener("mouseenter", () => showTip(g)); g.addEventListener("focus", () => showTip(g));
+    g.addEventListener("click", () => showTip(g));
+    g.addEventListener("mouseleave", () => tip.hidden = true); g.addEventListener("blur", () => tip.hidden = true);
+  });
+}
+
 (async () => {
   const {data} = await SB.auth.getSession();
   const user = data.session && data.session.user;
@@ -189,6 +280,7 @@ $("add").addEventListener("submit", async e => {
   if (!user.app_metadata || user.app_metadata.role !== "admin") return gate('To konto nie ma uprawnień admina. <a href="./">Wróć do prognozy</a>.');
   $("gate").hidden = true; $("app").hidden = false;
   try { await load(); } catch (err) { show($("listMsg"), "err", esc(err.message)); $("users").innerHTML = ""; }
+  loadTraffic().catch(err => show($("ruchMsg"), "err", esc(err.message)));
 })();
 })();
 </script>
