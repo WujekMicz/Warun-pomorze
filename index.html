@@ -146,7 +146,7 @@ footer a{color:var(--accent)}
     <div class="lead">
       <span class="eyebrow">Prognoza paralotniowa · Pomorze</span>
       <h1>Warun Pomorze</h1>
-      <p>Klify, wydmy i miejscówki na wiatr z południa na 7 dni. Kliknij pole, żeby zobaczyć godziny.</p>
+      <p>Klify, wydmy i skarpy na wiatr z północy, południa i wschodu – 7 dni. Kliknij pole, żeby zobaczyć godziny.</p>
     </div>
     <div class="ctrl">
       <span class="eyebrow">Skrzydło</span>
@@ -198,12 +198,24 @@ const SPOTS=[
  {id:"krynica",grp:"Wybrzeże – wiatr z północy",name:"Krynica Morska",type:"wydma ~8 m",lat:54.38,lon:19.44,dir:[330,350],tol:20,
   A:{min:6,max:7,gust:8.5,spread:2.5},B:{min:6,max:8,gust:9.5,spread:3.5},
   note:"Lądowanie na plaży. Sprawdź aktualną przestrzeń powietrzną – blisko granicy z Rosją."},
+ {id:"debina",grp:"Wybrzeże – wiatr z północy",name:"Dębina",type:"klif ~30 m, Ustka–Rowy",lat:54.6372,lon:17.0014,dir:[280,350],tol:20,
+  A:{min:5,max:7,gust:8.5,spread:3},B:{min:5,max:8,gust:9.5,spread:4},
+  note:"Działa przy NW (inne klify chcą N). TSA 14B – sprawdź AUP i powiadom FIS Gdańsk (+48 22 574 74 85), lokalni na 146,025 MHz. Start z małej polanki, przy mocnym wietrze z plaży. Auto na polanie przed szlabanem (za nim mandaty)."},
  {id:"mrzezino",grp:"Wiatr z południa",name:"Mrzezino",type:"górki, żwirownia",lat:54.652,lon:18.44,dir:[135,225],tol:15,
   A:{min:3,max:6,gust:8,spread:3},B:{min:3,max:7,gust:9,spread:4},
   note:"MCTR Oksywie: przed wyjazdem zapytaj w Glide Club Gdynia, czy rejon „Brzózka i Mrzezino” będzie aktywowany i czy obejmuje górki. Na wezwanie lądowanie w 10 minut."},
  {id:"nowemarzy",grp:"Wiatr z południa",name:"Nowe Marzy",type:"klif nad Wisłą 40 m",lat:53.467,lon:18.649,dir:[150,180],tol:15,
   A:{min:5,max:7,gust:8.5,spread:3},B:{min:5,max:8,gust:9.5,spread:4},
   note:"Płaski, lekko wklęsły start – uwaga na rotor. Lądowanie lepiej na górze. Obowiązuje flykarta KPSP. Po deszczu trudny dojazd polną drogą."},
+ {id:"orlowo",grp:"Wiatr ze wschodu",name:"Gdynia Orłowo",type:"klif nad zatoką",lat:54.479,lon:18.5636,dir:[80,120],tol:15,
+  A:{min:5,max:7,gust:8.5,spread:3},B:{min:5,max:8,gust:9.5,spread:4},
+  note:"MCTR Oksywie: start tylko przez organizatora z listy Glide Club Gdynia, nasłuch 146,025 MHz, na wezwanie lądowanie w 20 minut. Trudny start (technika alpejska), przy mocnym wietrze lądowanie na plaży. Uwaga na plażowiczów."},
+ {id:"mechelinki",grp:"Wiatr ze wschodu",name:"Mechelinki",type:"klif nad Zatoką Pucką",lat:54.595,lon:18.52,dir:[60,100],tol:15,
+  A:{min:5,max:7,gust:8.5,spread:3},B:{min:5,max:8,gust:9.5,spread:4},
+  note:"MCTR Oksywie – te same zasady co w Orłowie (organizator GCG, nasłuch 146,025 MHz). Współrzędne startowiska przybliżone – potwierdź miejsce startu w GCG."},
+ {id:"nowe",grp:"Wiatr ze wschodu",name:"Nowe",type:"skarpa nad Wisłą 40 m",lat:53.652,lon:18.735,dir:[80,110],tol:20,
+  A:{min:4,max:7,gust:8.5,spread:3},B:{min:4,max:8,gust:9.5,spread:4},
+  note:"Trudny start z półki kilka metrów pod krawędzią. Duże lądowisko u podnóża, toplanding tylko dla doświadczonych. Wiatr z zachodu = rotor za skarpą. Sprawdź, czy obowiązuje opłata (flykarta)."},
  {id:"elblag",grp:"Inne",name:"GH Elbląg",type:"lotnisko, ground handling",lat:54.16,lon:19.42,dir:null,
   A:{min:2,max:7,gust:9,spread:3.5},B:{min:2,max:8,gust:10,spread:4.5},
   note:"Potrzebna zgoda zarządzającego lotniskiem. Uważaj na ruch innych statków powietrznych. Mokre skrzydło jest ciężkie – lepiej przy suchej trawie."},
@@ -215,7 +227,7 @@ const DATA=window.WARUN_DATA||null;
 
 /* ---------- skrzydła ---------- */
 /* Wymagania samej miejscówki – obowiązują przy każdym skrzydle (wydma potrzebuje mocniejszego wiatru, hol w Borsku ma limit). */
-const SITE={chlapowo:{min:4},jastrzebia:{min:4},stegna:{min:6},krynica:{min:6},mrzezino:{min:3},nowemarzy:{min:5},
+const SITE={chlapowo:{min:4},jastrzebia:{min:4},stegna:{min:6},krynica:{min:6},debina:{min:5},mrzezino:{min:3},nowemarzy:{min:5},orlowo:{min:5},mechelinki:{min:5},nowe:{min:4},
   elblag:{min:2},borsk:{min:1,max:5,gust:7}};
 for(const s of SPOTS)s.site=SITE[s.id];
 /* EN-A i EN-B mają progi dobrane osobno dla każdej miejscówki (spot.A, spot.B). Pozostałe skrzydła: min/max/porywy/różnica. */
