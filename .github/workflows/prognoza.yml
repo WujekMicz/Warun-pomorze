@@ -1,0 +1,51 @@
+# Co 3 godziny: pobiera prognozę z api.met.no, buduje data.js i publikuje stronę na GitHub Pages.
+# W ustawieniach repo: Settings → Pages → Source: „GitHub Actions”.
+name: Prognoza
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pobierz prognozę i zbuduj stronę
+        run: |
+          python build.py fetch met
+          mkdir -p _site
+          cp index.html konto.js config.js _site/
+          python build.py build met _site/data.js
+      - name: Ping Supabase (darmowy projekt usypia po tygodniu bez ruchu)
+        continue-on-error: true
+        run: python build.py ping config.js
+      - name: Nie pozwól GitHubowi wyłączyć harmonogramu po 60 dniach bez commitów
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/prognoza.yml/enable"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

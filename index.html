@@ -1,0 +1,458 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Warun Pomorze</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tablica startowa – siatka miejscówek × 7 dni na górze, pod nią karta wybranego dnia z wykresem godzinowym */
+:root{
+  --bg:#eaf0f2; --surface:#ffffff; --ink:#132630; --muted:#566973; --line:#d0dadf;
+  --accent:#17708c; --go:#278a52; --warn:#c07c08; --no:#b9433a; --band:#278a52;
+  --go-bg:rgba(39,138,82,.26); --go-bd:rgba(39,138,82,.55); --warn-bg:rgba(192,124,8,.2); --warn-bd:rgba(192,124,8,.45); --no-bg:rgba(185,67,58,.14); --cell:rgba(208,218,223,.3); --line-soft:rgba(208,218,223,.35); --warn-soft:rgba(192,124,8,.12); --hatch:rgba(19,38,48,.07);
+  --font-display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c161b; --surface:#13222a; --ink:#e2ebef; --muted:#8ea2ac; --line:#24363f;
+  --accent:#5db6d2; --go:#47bd78; --warn:#e3a43a; --no:#e06a5f; --band:#47bd78; --go-bg:rgba(71,189,120,.26); --go-bd:rgba(71,189,120,.55); --warn-bg:rgba(227,164,58,.2); --warn-bd:rgba(227,164,58,.45); --no-bg:rgba(224,106,95,.14); --cell:rgba(36,54,63,.6); --line-soft:rgba(36,54,63,.5); --warn-soft:rgba(227,164,58,.12); --hatch:rgba(226,235,239,.07); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c161b; --surface:#13222a; --ink:#e2ebef; --muted:#8ea2ac; --line:#24363f;
+  --accent:#5db6d2; --go:#47bd78; --warn:#e3a43a; --no:#e06a5f; --band:#47bd78; --go-bg:rgba(71,189,120,.26); --go-bd:rgba(71,189,120,.55); --warn-bg:rgba(227,164,58,.2); --warn-bd:rgba(227,164,58,.45); --no-bg:rgba(224,106,95,.14); --cell:rgba(36,54,63,.6); --line-soft:rgba(36,54,63,.5); --warn-soft:rgba(227,164,58,.12); --hatch:rgba(226,235,239,.07); color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1040px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--font-display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0}
+h1{font-size:2.3rem;line-height:1}
+h2{font-size:1.6rem;line-height:1.05}
+.eyebrow{font-family:var(--font-data);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.top .lead{display:flex;flex-direction:column;gap:6px;min-width:0}
+.top p{margin:0;color:var(--muted);max-width:60ch}
+
+.seg{display:inline-flex;flex-wrap:wrap;max-width:420px;border:1px solid var(--line);border-radius:18px;padding:3px;background:var(--surface)}
+.seg button{font:600 .95rem var(--font-display);letter-spacing:.04em;border:0;background:transparent;color:var(--muted);
+  padding:6px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ctrl{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+
+.banner{border:1px solid var(--warn);color:var(--ink);background:var(--warn-soft);
+  border-radius:10px;padding:10px 14px;font-size:.92rem}
+.banner strong{color:var(--warn)}
+
+/* siatka */
+.board{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.scroll{overflow-x:auto}
+table.grid{border-collapse:separate;border-spacing:0;width:100%;min-width:640px}
+.grid th,.grid td{padding:0}
+.grid thead th{font-weight:500;text-align:center;padding:10px 4px 8px;border-bottom:1px solid var(--line);vertical-align:bottom}
+.grid thead th .d{font-family:var(--font-display);font-size:1.05rem;font-weight:600;display:block;line-height:1}
+.grid thead th .dt{font-family:var(--font-data);font-size:.72rem;color:var(--muted)}
+.conf{display:inline-block;margin-top:5px;font-family:var(--font-data);font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;
+  padding:1px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.conf.c0{border-color:var(--accent);color:var(--accent)}
+.grid .spot{position:sticky;left:0;z-index:1;background:var(--surface);text-align:left;padding:8px 10px 8px 14px;
+  border-right:1px solid var(--line);min-width:118px;max-width:150px}
+.spot .n{font-weight:600;display:block;line-height:1.15}
+.spot .t{font-family:var(--font-data);font-size:.68rem;color:var(--muted)}
+.grp td{font-family:var(--font-data);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  padding:10px 14px 4px;background:var(--line-soft)}
+.grp td.first{position:sticky;left:0;z-index:1}
+.cellwrap{padding:3px}
+button.cell{width:100%;min-height:46px;border:1px solid transparent;border-radius:8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font:inherit;color:var(--ink);
+  background:var(--cell)}
+button.cell .s{font-family:var(--font-display);font-weight:700;font-size:1.05rem;line-height:1}
+button.cell .w{font-family:var(--font-data);font-size:.66rem;font-variant-numeric:tabular-nums}
+button.cell.go{background:var(--go-bg);border-color:var(--go-bd)}
+button.cell.go .s{color:var(--go)}
+button.cell.warn{background:var(--warn-bg);border-color:var(--warn-bd)}
+button.cell.warn .s{color:var(--warn)}
+button.cell.no .s{color:var(--no)}
+button.cell.no .w{color:var(--muted)}
+button.cell.none{opacity:.55;cursor:default}
+td.far button.cell{background-image:repeating-linear-gradient(135deg,transparent 0 6px,var(--hatch) 6px 7px)}
+button.cell[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+button.cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 14px;border-top:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+.sw.go{background:var(--go-bd)}
+.sw.warn{background:var(--warn-bd)}
+.sw.no{background:var(--line)}
+.sw.far{background:repeating-linear-gradient(135deg,var(--surface) 0 3px,var(--line) 3px 4px);border:1px solid var(--line)}
+
+/* karta dnia */
+.detail{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.dhead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.verdict{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;font-size:1.25rem;
+  padding:4px 12px;border-radius:999px}
+.verdict.go{background:var(--go-bg);color:var(--go)}
+.verdict.warn{background:var(--warn-bg);color:var(--warn)}
+.verdict.no,.verdict.none{background:var(--no-bg);color:var(--no)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.fact{border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:0}
+.fact .v{font-family:var(--font-data);font-size:1rem;font-variant-numeric:tabular-nums}
+.reasons{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.chart{width:100%;overflow-x:auto}
+.chart svg{display:block;width:100%;min-width:520px;height:auto}
+.chart text{font-family:var(--font-data);font-size:11px;fill:var(--muted)}
+.notes{font-size:.9rem;border-left:3px solid var(--accent);padding:4px 0 4px 12px;color:var(--ink)}
+table.hours{border-collapse:collapse;width:100%;min-width:480px;font-family:var(--font-data);font-size:.8rem;font-variant-numeric:tabular-nums}
+.hours th,.hours td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line)}
+.hours th{color:var(--muted);font-weight:500}
+.hours td:first-child,.hours th:first-child{text-align:left}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.dot.go{background:var(--go)}.dot.warn{background:var(--warn)}.dot.no{background:var(--no)}
+details summary{cursor:pointer;color:var(--accent);font-weight:500}
+footer{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:75ch}
+footer a{color:var(--accent)}
+/* konto i własne skrzydła */
+.acct{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.acct:empty{display:none}
+.acct .bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.acct .links{display:flex;flex-wrap:wrap;gap:6px 14px}
+.acct .lnk{color:var(--accent);font:500 .88rem var(--font-body);background:none;border:0;padding:0;cursor:pointer}
+.acct .lnk:hover{text-decoration:underline}
+.acct form{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+.acct label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);flex:1 1 120px}
+.acct label.num{flex:0 1 92px}
+.acct input,.acct select{font:14px var(--font-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%;min-width:0}
+.acct input:focus-visible,.acct select:focus-visible,.acct .btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.acct .btn{font:600 .95rem var(--font-display);letter-spacing:.04em;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:999px;padding:6px 16px;cursor:pointer}
+.acct .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.acct .btn:disabled{opacity:.5;cursor:default}
+.acct .msg{font-size:.88rem;border-radius:8px;padding:8px 12px}
+.acct .msg.err{background:var(--no-bg);color:var(--no)}
+.acct .msg.ok{background:var(--go-bg)}
+.acct .msg.warn{background:var(--warn-soft);border:1px solid var(--warn)}
+.acct table{border-collapse:collapse;width:100%;font-size:.86rem}
+.acct td,.acct th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+.acct th{color:var(--muted);font-weight:500;font-size:.75rem}
+.acct td.acts{text-align:right;white-space:nowrap}
+@media (prefers-reduced-motion:no-preference){button.cell{transition:transform .12s}button.cell:hover:not(.none){transform:translateY(-1px)}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="lead">
+      <span class="eyebrow">Prognoza paralotniowa · Pomorze</span>
+      <h1>Warun Pomorze</h1>
+      <p>Klify, wydmy i miejscówki na wiatr z południa na 7 dni. Kliknij pole, żeby zobaczyć godziny.</p>
+    </div>
+    <div class="ctrl">
+      <span class="eyebrow">Skrzydło</span>
+      <div class="seg" role="group" aria-label="Skrzydło" id="wings"></div>
+      <span class="mono muted" id="upd" style="font-size:.75rem"></span>
+    </div>
+  </header>
+
+  <section class="acct" id="acct" aria-label="Konto i własne skrzydła"></section>
+
+  <div class="banner" id="demo" hidden><strong>Dane przykładowe.</strong> Strona pokazuje wymyślone wartości do podglądu wyglądu. Nie podejmuj na ich podstawie decyzji o locie – prawdziwa prognoza pojawi się po pierwszym odświeżeniu.</div>
+  <div class="banner" id="stale" hidden></div>
+
+  <section class="board" aria-label="Siatka warunków">
+    <div class="scroll"><table class="grid" id="grid"></table></div>
+    <div class="legend">
+      <span><i class="sw go"></i>lotne okno ≥ 2 h</span>
+      <span><i class="sw warn"></i>na granicy / krótkie okno</span>
+      <span><i class="sw no"></i>nie działa</span>
+      <span><i class="sw far"></i>dni 4–7: prognoza orientacyjna</span>
+    </div>
+  </section>
+
+  <section class="detail" id="detail" aria-live="polite"></section>
+
+  <footer>
+    <span>Dane: <a href="https://api.met.no/" target="_blank" rel="noopener">MET Norway (yr.no)</a>, model ECMWF z poprawkami MET. Godzinowe porywy są na ok. 2–3 dni do przodu; dalej porywy są szacowane.</span>
+    <span>To ocena prognozy według progów dla klasy skrzydła. Ostateczna decyzja należy do pilota na miejscu, po obserwacji warunków.</span>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+const TZ="Europe/Warsaw";
+const SPOTS=[
+ {id:"chlapowo",grp:"Wybrzeże – wiatr z północy",name:"Chłapowo",type:"klif",lat:54.81,lon:18.39,dir:[330,30],tol:15,
+  A:{min:4,max:7,gust:8.5,spread:3},B:{min:4,max:8,gust:9.5,spread:4},
+  note:"Wiatr od lądu (S, SW, SE) to rotor za klifem – nie lataj."},
+ {id:"jastrzebia",grp:"Wybrzeże – wiatr z północy",name:"Jastrzębia Góra",type:"klif",lat:54.83,lon:18.31,dir:[330,30],tol:15,
+  A:{min:4,max:7,gust:8.5,spread:3},B:{min:4,max:8,gust:9.5,spread:4},
+  note:"Wiatr od lądu (S, SW, SE) to rotor za klifem – nie lataj."},
+ {id:"stegna",grp:"Wybrzeże – wiatr z północy",name:"Stegna",type:"wydma ~8 m",lat:54.33,lon:19.11,dir:[350,10],tol:20,
+  A:{min:6,max:7,gust:8.5,spread:2.5},B:{min:6,max:8,gust:9.5,spread:3.5},
+  note:"Niska wydma, lądowanie na plaży. Park Krajobrazowy Mierzeja Wiślana – nie depcz wydm poza przejściami."},
+ {id:"krynica",grp:"Wybrzeże – wiatr z północy",name:"Krynica Morska",type:"wydma ~8 m",lat:54.38,lon:19.44,dir:[330,350],tol:20,
+  A:{min:6,max:7,gust:8.5,spread:2.5},B:{min:6,max:8,gust:9.5,spread:3.5},
+  note:"Lądowanie na plaży. Sprawdź aktualną przestrzeń powietrzną – blisko granicy z Rosją."},
+ {id:"mrzezino",grp:"Wiatr z południa",name:"Mrzezino",type:"górki, żwirownia",lat:54.652,lon:18.44,dir:[135,225],tol:15,
+  A:{min:3,max:6,gust:8,spread:3},B:{min:3,max:7,gust:9,spread:4},
+  note:"MCTR Oksywie: przed wyjazdem zapytaj w Glide Club Gdynia, czy rejon „Brzózka i Mrzezino” będzie aktywowany i czy obejmuje górki. Na wezwanie lądowanie w 10 minut."},
+ {id:"nowemarzy",grp:"Wiatr z południa",name:"Nowe Marzy",type:"klif nad Wisłą 40 m",lat:53.467,lon:18.649,dir:[150,180],tol:15,
+  A:{min:5,max:7,gust:8.5,spread:3},B:{min:5,max:8,gust:9.5,spread:4},
+  note:"Płaski, lekko wklęsły start – uwaga na rotor. Lądowanie lepiej na górze. Obowiązuje flykarta KPSP. Po deszczu trudny dojazd polną drogą."},
+ {id:"elblag",grp:"Inne",name:"GH Elbląg",type:"lotnisko, ground handling",lat:54.16,lon:19.42,dir:null,
+  A:{min:2,max:7,gust:9,spread:3.5},B:{min:2,max:8,gust:10,spread:4.5},
+  note:"Potrzebna zgoda zarządzającego lotniskiem. Uważaj na ruch innych statków powietrznych. Mokre skrzydło jest ciężkie – lepiej przy suchej trawie."},
+ {id:"borsk",grp:"Inne",name:"Borsk",type:"termika z wyciągarki",lat:53.97,lon:17.84,dir:null,thermal:true,
+  A:{min:1,max:5,gust:7,spread:3.5},B:{min:1,max:5,gust:7,spread:3.5},
+  note:"Ocena dotyczy wiatru przy ziemi do holu. Od października do marca termika jest zwykle słaba lub żadna."}
+];
+const DATA=window.WARUN_DATA||null;
+
+/* ---------- skrzydła ---------- */
+/* Wymagania samej miejscówki – obowiązują przy każdym skrzydle (wydma potrzebuje mocniejszego wiatru, hol w Borsku ma limit). */
+const SITE={chlapowo:{min:4},jastrzebia:{min:4},stegna:{min:6},krynica:{min:6},mrzezino:{min:3},nowemarzy:{min:5},
+  elblag:{min:2},borsk:{min:1,max:5,gust:7}};
+for(const s of SPOTS)s.site=SITE[s.id];
+/* EN-A i EN-B mają progi dobrane osobno dla każdej miejscówki (spot.A, spot.B). Pozostałe skrzydła: min/max/porywy/różnica. */
+const PRESETS=[{id:"A",name:"EN-A"},{id:"B",name:"EN-B"},
+  {id:"parakite",name:"Parakite",min:5,max:10,gust:12,spread:4,draft:true}];
+let MY=[];
+const allWings=()=>PRESETS.concat(MY);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function limitsFor(spot,w){
+  if(w.id==="A"||w.id==="B")return spot[w.id];
+  const s=spot.site;  // bezpieczniejsza wartość z obu
+  return {min:Math.max(s.min,w.min),max:Math.min(s.max??Infinity,w.max),gust:Math.min(s.gust??Infinity,w.gust),spread:w.spread};
+}
+
+/* ---------- czas ---------- */
+const fmtParts=new Intl.DateTimeFormat("en-GB",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"});
+function localParts(ts){const o={};for(const p of fmtParts.formatToParts(new Date(ts*1000)))o[p.type]=p.value;
+  return {key:o.year+"-"+o.month+"-"+o.day,h:+o.hour,y:+o.year,m:+o.month,d:+o.day};}
+const DOW=["niedz.","pon.","wt.","śr.","czw.","pt.","sob."];
+const DOWL=["Niedziela","Poniedziałek","Wtorek","Środa","Czwartek","Piątek","Sobota"];
+function dayInfo(key){const [y,m,d]=key.split("-").map(Number);const dd=new Date(Date.UTC(y,m-1,d,12));
+  return {dow:dd.getUTCDay(),label:d+"."+String(m).padStart(2,"0"),y,m,d};}
+function tzOffsetHours(y,m,d){const ts=Date.UTC(y,m-1,d,12)/1000;return localParts(ts).h-12;}
+/* wschód i zachód słońca (NOAA, uproszczone), godziny lokalne */
+function sun(y,m,d,lat,lon){
+  const rad=Math.PI/180,N=Math.floor((Date.UTC(y,m-1,d)-Date.UTC(y,0,0))/864e5);
+  const g=2*Math.PI/365*(N-1);
+  const eq=229.18*(0.000075+0.001868*Math.cos(g)-0.032077*Math.sin(g)-0.014615*Math.cos(2*g)-0.040849*Math.sin(2*g));
+  const decl=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);
+  const ha=Math.acos(Math.cos(90.833*rad)/(Math.cos(lat*rad)*Math.cos(decl))-Math.tan(lat*rad)*Math.tan(decl))/rad;
+  const off=tzOffsetHours(y,m,d);
+  return {rise:(720-4*(lon+ha)-eq)/60+off,set:(720-4*(lon-ha)-eq)/60+off};
+}
+const DIRS=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const dirName=d=>DIRS[Math.round(((d%360)+360)%360/22.5)%16];
+const f1=x=>x==null?"–":(Math.round(x*10)/10).toFixed(1).replace(".",",");
+
+/* ---------- ocena ---------- */
+function angDist(a,b){const d=Math.abs(((a-b)%360+540)%360-180);return d;}
+function dirCheck(spot,deg){
+  if(!spot.dir)return 0;
+  const [a,b]=spot.dir;const span=((b-a)%360+360)%360;const rel=((deg-a)%360+360)%360;
+  if(rel<=span)return 0;
+  const out=Math.min(angDist(deg,a),angDist(deg,b));
+  return out<=spot.tol?1:2;
+}
+function evalHour(spot,w,r){
+  const L=limitsFor(spot,w);const issues=[];let s=0;
+  const add=(lvl,txt)=>{if(lvl>0){issues.push({lvl,txt});s=Math.max(s,lvl);}};
+  const dc=dirCheck(spot,r.dir);add(dc,dc===2?"kierunek "+dirName(r.dir)+" – startowisko nie działa":"kierunek "+dirName(r.dir)+" na granicy");
+  if(r.ws<L.min)add(r.ws<L.min-0.5?2:1,"za słabo");
+  if(r.ws>L.max)add(r.ws>L.max+0.5?2:1,"za mocno dla "+esc(w.name));
+  if(r.gust>L.gust)add(r.gust>L.gust+0.5?2:1,"porywy ponad "+f1(L.gust)+" m/s");
+  if(r.gust-r.ws>L.spread)add(r.gust-r.ws>L.spread+0.5?2:1,"duża różnica poryw − średnia");
+  if(r.pr!=null){if(r.pr>0.3)add(2,"opady");else if(r.pr>0.05)add(1,"możliwa mżawka");}
+  if(r.th!=null){if(r.th>10)add(2,"ryzyko burzy");else if(r.th>3)add(1,"małe ryzyko burzy");}
+  if(spot.thermal&&r.cloud>85)add(1,"pełne zachmurzenie – brak termiki");
+  return {s,issues};
+}
+function buildSeries(spot){
+  const sd=DATA&&DATA.spots&&DATA.spots[spot.id];if(!sd)return null;
+  const map={};
+  for(const row of sd.rows){
+    const [t,dir,ws,gust,p90,pr,cloud,th,res]=row;
+    const span=res===6?6:1;
+    for(let k=0;k<span;k++){
+      const lp=localParts(t+k*3600);const key=lp.key+"|"+lp.h;
+      if(res===6&&map[key]&&map[key].res===1)continue;
+      const est=gust==null;
+      map[key]={t:t+k*3600,dir,ws,gust:est?Math.round(ws*1.6*10)/10:gust,gustEst:est,p90,pr,cloud,th,res};
+    }
+  }
+  return map;
+}
+const nowTs=Date.now()/1000;const nowLp=localParts(nowTs);
+function dayKeys(){const out=[];for(let i=0;i<7;i++){const d=new Date(Date.UTC(nowLp.y,nowLp.m-1,nowLp.d+i));out.push(d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"));}return out;}
+function evalDay(spot,cls,series,key,idx){
+  const di=dayInfo(key);const sn=sun(di.y,di.m,di.d,spot.lat,spot.lon);
+  const hours=[];
+  for(let h=8;h<=18;h++){
+    if(h+0.5<sn.rise||h+0.5>sn.set)continue;
+    const r=series&&series[key+"|"+h];if(!r)continue;
+    const past=idx===0&&(h+1)<=nowLp.h;
+    const e=evalHour(spot,cls,r);
+    hours.push({h,r,past,...e});
+  }
+  const live=hours.filter(x=>!x.past);
+  let best=null,cur=null,bestM=null,curM=null;
+  for(const x of live){
+    if(x.s===0){cur=cur&&cur.end===x.h?{start:cur.start,end:x.h+1}:{start:x.h,end:x.h+1};if(!best||cur.end-cur.start>best.end-best.start)best={...cur};}else cur=null;
+    if(x.s<=1){curM=curM&&curM.end===x.h?{start:curM.start,end:x.h+1}:{start:x.h,end:x.h+1};if(!bestM||curM.end-curM.start>bestM.end-bestM.start)bestM={...curM};}else curM=null;
+  }
+  let status,win=null;
+  if(!live.length){status="none";}
+  else if(best&&best.end-best.start>=2){status="go";win=best;}
+  else if(best||(bestM&&bestM.end-bestM.start>=2)){status="warn";win=best&&(!bestM||best.end-best.start>=2)?best:bestM;}
+  else status="no";
+  if(spot.thermal&&status==="go"&&(di.m>=10||di.m<=3))status="warn";
+  const counts={};for(const x of live)for(const i of x.issues){counts[i.txt]=(counts[i.txt]||0)+(i.lvl===2?2:1);}
+  const reasons=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+  const any6=live.some(x=>x.r.res===6),anyEst=live.some(x=>x.r.gustEst);
+  return {status,win,hours,live,reasons,sun:sn,any6,anyEst,di};
+}
+
+/* ---------- render ---------- */
+let WANT="A";try{const v=localStorage.getItem("warun-cls");if(v)WANT=v;}catch(e){}
+let WING=PRESETS[0];
+let SEL=null;try{const v=localStorage.getItem("warun-sel");if(v)SEL=JSON.parse(v);}catch(e){}
+const KEYS=dayKeys();
+const SERIES={};for(const s of SPOTS)SERIES[s.id]=buildSeries(s);
+const CONF=i=>i<=2?["pewna","c0"]:i<=4?["średnia",""]:["orientacyjna",""];
+const SYM={go:"✓",warn:"!",no:"✕",none:"·"};
+const VERD={go:"Lotne okno",warn:"Na granicy",no:"Nie działa",none:"Brak danych / po zmroku"};
+
+function renderGrid(){
+  const g=document.getElementById("grid");
+  let h="<thead><tr><th class='spot'><span class='eyebrow'>Miejscówka</span></th>";
+  KEYS.forEach((k,i)=>{const di=dayInfo(k);const c=CONF(i);
+    h+=`<th><span class="d">${i===0?"Dziś":DOW[di.dow]}</span><span class="dt">${di.label}</span><br><span class="conf ${c[1]}">${c[0]}</span></th>`;});
+  h+="</tr></thead><tbody>";
+  let lastG="";
+  for(const s of SPOTS){
+    if(s.grp!==lastG){lastG=s.grp;h+=`<tr class="grp"><td class="first">${s.grp}</td><td colspan="7"></td></tr>`;}
+    h+=`<tr><th class="spot" scope="row"><span class="n">${s.name}</span><span class="t">${s.type}</span></th>`;
+    KEYS.forEach((k,i)=>{
+      const ev=evalDay(s,WING,SERIES[s.id],k,i);
+      const w=ev.win?`${ev.win.start}–${ev.win.end}`:(ev.status==="none"?"":"—");
+      const sel=SEL&&SEL.s===s.id&&SEL.k===k;
+      const lab=`${s.name}, ${i===0?"dziś":DOWL[ev.di.dow]} ${ev.di.label}: ${VERD[ev.status]}${ev.win?", okno "+w:""}`;
+      h+=`<td class="${i>=3?"far":""}"><div class="cellwrap"><button type="button" class="cell ${ev.status}" data-s="${s.id}" data-k="${k}" aria-pressed="${sel?"true":"false"}" aria-label="${lab}" ${ev.status==="none"?"":""}><span class="s">${SYM[ev.status]}</span><span class="w">${w}</span></button></div></td>`;
+    });
+    h+="</tr>";
+  }
+  g.innerHTML=h+"</tbody>";
+  g.querySelectorAll("button.cell").forEach(b=>b.addEventListener("click",()=>{SEL={s:b.dataset.s,k:b.dataset.k};
+    try{localStorage.setItem("warun-sel",JSON.stringify(SEL));}catch(e){}
+    g.querySelectorAll("button.cell").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));renderDetail();
+    if(window.innerWidth<760)document.getElementById("detail").scrollIntoView({behavior:"smooth",block:"start"});}));
+}
+
+function chartSVG(spot,ev){
+  const hs=ev.hours;if(!hs.length)return "";
+  const L=limitsFor(spot,WING);const W=640,H=250,pl=34,pr=12,top=36,bot=56;
+  const maxY=Math.max(12,Math.ceil(Math.max(...hs.map(x=>x.r.gust||0))+1));
+  const n=hs.length,step=(W-pl-pr)/n;
+  const X=i=>pl+step*(i+0.5),Y=v=>top+(H-top-bot)*(1-v/maxY);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wiatr godzinowy: ${spot.name}">`;
+  // pasmo lotne
+  s+=`<rect x="${pl}" y="${Y(L.max)}" width="${W-pl-pr}" height="${Y(L.min)-Y(L.max)}" fill="var(--band)" fill-opacity=".12"/>`;
+  s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(L.gust)}" y2="${Y(L.gust)}" stroke="var(--no)" stroke-dasharray="4 4" stroke-width="1"/>`;
+  s+=`<text x="${W-pr}" y="${Y(L.gust)-4}" text-anchor="end">limit porywów ${f1(L.gust)}</text>`;
+  s+=`<text x="${W-pr}" y="${Y(L.max)+12}" text-anchor="end" style="fill:var(--band)">zakres ${esc(WING.name)} ${f1(L.min)}–${f1(L.max)} m/s</text>`;
+  for(let v=0;v<=maxY;v+=2){s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width=".6"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;}
+  s+=`<text x="${pl-6}" y="${top-14}" text-anchor="end">m/s</text>`;
+  // opady
+  hs.forEach((x,i)=>{if(x.r.pr>0){const hh=Math.min(28,x.r.pr*14);s+=`<rect x="${X(i)-step*0.3}" y="${H-bot-hh}" width="${step*0.6}" height="${hh}" fill="var(--accent)" fill-opacity=".35"/>`;}});
+  // linie
+  const line=(k,dash,col)=>`<polyline fill="none" stroke="${col}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':""} points="${hs.map((x,i)=>X(i)+","+Y(x.r[k])).join(" ")}"/>`;
+  s+=line("gust",true,"var(--muted)")+line("ws",false,"var(--ink)");
+  hs.forEach((x,i)=>{s+=`<circle cx="${X(i)}" cy="${Y(x.r.ws)}" r="3.2" fill="var(--ink)"/>`;
+    s+=`<circle cx="${X(i)}" cy="${Y(x.r.gust)}" r="2.6" fill="${x.r.gustEst?"var(--surface)":"var(--muted)"}" stroke="var(--muted)" stroke-width="1"/>`;});
+  // strzałki kierunku (dokąd wieje)
+  hs.forEach((x,i)=>{const dc=dirCheck(spot,x.r.dir);const col=dc===0?"var(--go)":dc===1?"var(--warn)":"var(--no)";
+    s+=`<g transform="translate(${X(i)},16) rotate(${x.r.dir+180})"><path d="M0,-9 L5,4 L0,1 L-5,4 Z" fill="${col}"/></g>`;});
+  // pasek statusu i godziny
+  hs.forEach((x,i)=>{const col=x.s===0?"var(--go)":x.s===1?"var(--warn)":"var(--no)";
+    s+=`<rect x="${X(i)-step/2+1}" y="${H-bot+8}" width="${step-2}" height="8" rx="2" fill="${col}" fill-opacity="${x.past?0.25:0.9}"/>`;
+    s+=`<text x="${X(i)}" y="${H-bot+32}" text-anchor="middle">${x.h}:00</text>`;});
+  s+=`<text x="${pl}" y="${H-6}">— średni   - - porywy${hs.some(x=>x.r.gustEst)?" (puste kółko = szacowane)":""}   ▮ opad   ▲ kierunek: dokąd wieje</text>`;
+  return s+"</svg>";
+}
+
+function renderDetail(){
+  const box=document.getElementById("detail");
+  if(!DATA||!DATA.spots){box.innerHTML="<h2>Brak danych</h2><p class='muted'>Prognoza jeszcze nie została wgrana.</p>";return;}
+  let spot=SPOTS.find(s=>SEL&&s.id===SEL.s),k=SEL&&KEYS.includes(SEL.k)?SEL.k:null,idx;
+  if(!spot||!k){ // domyślnie: najlepsze pole w najbliższych 3 dniach
+    let best=null;const rank={go:3,warn:2,no:1,none:0};
+    KEYS.slice(0,3).forEach((kk,i)=>SPOTS.forEach(s=>{const e=evalDay(s,WING,SERIES[s.id],kk,i);
+      const sc=rank[e.status]*10+(e.win?e.win.end-e.win.start:0);if(!best||sc>best.sc)best={sc,s,kk};}));
+    spot=best.s;k=best.kk;
+  }
+  idx=KEYS.indexOf(k);
+  const ev=evalDay(spot,WING,SERIES[spot.id],k,idx);const c=CONF(idx);
+  const L=limitsFor(spot,WING);
+  const live=ev.live;const avg=a=>a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
+  const src=ev.win?live.filter(x=>x.h>=ev.win.start&&x.h<ev.win.end):live;
+  const dirs=src.map(x=>x.r.dir);const mws=avg(src.map(x=>x.r.ws));const mg=src.length?Math.max(...src.map(x=>x.r.gust)):null;
+  const meanDir=dirs.length?(()=>{let sx=0,sy=0;for(const d of dirs){sx+=Math.sin(d*Math.PI/180);sy+=Math.cos(d*Math.PI/180);}return (Math.atan2(sx,sy)*180/Math.PI+360)%360;})():null;
+  const fmtH=x=>{const hh=Math.floor(x),mm=Math.round((x-hh)*60);return hh+":"+String(mm).padStart(2,"0");};
+  let html=`<div class="dhead"><div><span class="eyebrow">${spot.type} · ${i18day(ev.di,idx)}</span><h2>${spot.name}</h2></div>
+    <span class="verdict ${ev.status}">${SYM[ev.status]} ${VERD[ev.status]}${ev.win?" "+ev.win.start+":00–"+ev.win.end+":00":""}</span></div>`;
+  html+=`<div class="facts">
+    <div class="fact"><span class="eyebrow">${ev.win?"W oknie":"W ciągu dnia"}</span><div class="v">${meanDir==null?"–":dirName(meanDir)+" "+Math.round(meanDir)+"°"}</div></div>
+    <div class="fact"><span class="eyebrow">Średni / max poryw</span><div class="v">${f1(mws)} / ${f1(mg)} m/s</div></div>
+    <div class="fact"><span class="eyebrow">Działa przy</span><div class="v">${spot.dir?dirName(spot.dir[0])+"–"+dirName(spot.dir[1])+" ("+spot.dir[0]+"–"+spot.dir[1]+"°)":"każdym kierunku"}</div></div>
+    <div class="fact"><span class="eyebrow">Progi ${esc(WING.name)}${WING.draft?" (wstępne)":""}</span><div class="v">${f1(L.min)}–${f1(L.max)} m/s, por. ${f1(L.gust)}</div></div>
+    <div class="fact"><span class="eyebrow">Słońce</span><div class="v">${fmtH(ev.sun.rise)}–${fmtH(ev.sun.set)}</div></div>
+    <div class="fact"><span class="eyebrow">Pewność</span><div class="v">${c[0]}${ev.anyEst?", porywy szac.":""}</div></div>
+  </div>`;
+  if(ev.reasons.length&&ev.status!=="go"){html+=`<div><span class="eyebrow">Co przeszkadza</span><ul class="reasons">${ev.reasons.slice(0,4).map(r=>"<li>"+r+"</li>").join("")}</ul></div>`;}
+  if(ev.hours.length)html+=`<div class="chart">${chartSVG(spot,ev)}</div>`;
+  html+=`<div class="notes">${spot.note}</div>`;
+  if(ev.hours.length){
+    html+=`<details><summary>Tabela godzinowa</summary><div class="chart"><table class="hours"><thead><tr><th>Godz.</th><th>Kier.</th><th>Średni</th><th>Poryw</th><th>Opad</th><th>Chm.</th><th>Uwagi</th></tr></thead><tbody>`;
+    for(const x of ev.hours){const cl=x.s===0?"go":x.s===1?"warn":"no";
+      html+=`<tr${x.past?' class="muted"':""}><td><span class="dot ${cl}"></span>${x.h}:00</td><td>${dirName(x.r.dir)} ${x.r.dir}°</td><td>${f1(x.r.ws)}</td><td>${f1(x.r.gust)}${x.r.gustEst?"*":""}</td><td>${x.r.pr==null?"–":f1(x.r.pr)}</td><td>${x.r.cloud}%</td><td style="text-align:left">${x.past?"minęło":x.issues.map(i=>i.txt).join(", ")}</td></tr>`;}
+    html+=`</tbody></table></div>${ev.anyEst?'<p class="muted" style="font-size:.8rem;margin:6px 0 0">* poryw szacowany jako 1,6 × średni wiatr (brak danych godzinowych).</p>':""}</details>`;
+  }
+  box.innerHTML=html;
+}
+function i18day(di,idx){return (idx===0?"dziś, ":"")+DOWL[di.dow].toLowerCase()+" "+di.label;}
+
+function setWing(id,remember){
+  const w=allWings().find(x=>x.id===id);WING=w||PRESETS[0];
+  if(remember){WANT=WING.id;try{localStorage.setItem("warun-cls",WING.id);}catch(e){}}
+  renderWings();renderGrid();renderDetail();}
+function renderWings(){
+  const box=document.getElementById("wings");
+  box.innerHTML=allWings().map(w=>`<button type="button" data-c="${esc(w.id)}" aria-pressed="${w.id===WING.id}"${w.id==="A"||w.id==="B"?"":` title="${esc(w.name)}: ${f1(w.min)}–${f1(w.max)} m/s, porywy do ${f1(w.gust)}${w.draft?" – progi wstępne":""}"`}>${esc(w.name)}</button>`).join("");
+  box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setWing(b.dataset.c,true)));}
+/* konto.js podaje tu skrzydła zalogowanego użytkownika */
+window.WARUN={presets:PRESETS,setOwnWings(list){MY=list;setWing(allWings().some(w=>w.id===WANT)?WANT:WING.id,false);}};
+document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setCls(b.dataset.c)));
+
+// meta
+if(DATA){
+  document.getElementById("demo").hidden=!DATA.demo;
+  const g=new Date(DATA.generated);
+  document.getElementById("upd").textContent="Dane z "+g.toLocaleString("pl-PL",{timeZone:TZ,day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"});
+  const ageH=(Date.now()-g.getTime())/36e5;
+  if(!DATA.demo&&ageH>18){const st=document.getElementById("stale");st.hidden=false;st.innerHTML="<strong>Stare dane.</strong> Ostatnie odświeżenie było "+Math.round(ageH)+" h temu – prognoza może być nieaktualna.";}
+}else{document.getElementById("upd").textContent="Brak danych";}
+setWing(WANT,false);
+})();
+</script>
+
+
+<script src="konto.js"></script>
+</body></html>
