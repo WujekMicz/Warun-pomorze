@@ -106,6 +106,13 @@ button.cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .chart svg{display:block;width:100%;min-width:520px;height:auto}
 .chart text{font-family:var(--font-data);font-size:11px;fill:var(--muted)}
 .notes{font-size:.9rem;border-left:3px solid var(--accent);padding:4px 0 4px 12px;color:var(--ink)}
+.maps{display:flex;flex-wrap:wrap;gap:8px}
+.maplink{flex:1 1 150px;text-align:center;text-decoration:none;font:600 .95rem var(--font-display);letter-spacing:.03em;
+  color:var(--bg);background:var(--ink);border-radius:10px;padding:9px 12px}
+.maplink small{font:400 .75rem var(--font-body);opacity:.8}
+.maplink.off{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+.maplink:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.parknote{font-size:.85rem;color:var(--muted);margin:0}
 table.hours{border-collapse:collapse;width:100%;min-width:480px;font-family:var(--font-data);font-size:.8rem;font-variant-numeric:tabular-nums}
 .hours th,.hours td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line)}
 .hours th{color:var(--muted);font-weight:500}
@@ -224,6 +231,41 @@ const SPOTS=[
   note:"Ocena dotyczy wiatru przy ziemi do holu. Od października do marca termika jest zwykle słaba lub żadna."}
 ];
 const DATA=window.WARUN_DATA||null;
+
+/* ---------- pinezki: startowisko i parking ----------
+   {lat, lon} albo {q: "adres"}; approx = położenie przybliżone; null = jeszcze nieustalone */
+const PLACES={
+  chlapowo:{takeoff:{lat:54.811,lon:18.3727},parking:null,
+    parkNote:"Piloci stają przy drodze Władysławowo – Jastrzębia Góra, w okolicy szyldu „KLIF”. Przez ulicę, schodkami na górę i ścieżką wzdłuż płotu na polanę. W sezonie parking płatny."},
+  jastrzebia:{takeoff:{lat:54.835,lon:18.3012},parking:{q:"ulica Juliusza Słowackiego, Jastrzębia Góra"},
+    parkNote:"Miejsca wzdłuż ul. Słowackiego (wjazd przy Polo Markecie), w sezonie parkomaty. Alternatywa: płatny parking ośrodka „Promenada” na końcu ulicy, kilka kroków od startu."},
+  stegna:{takeoff:{lat:54.3467,lon:19.1134},parking:null,
+    parkNote:"Start z zejścia na plażę przy kutrach (przystań rybacka) albo na prawo od niego."},
+  krynica:{takeoff:null,parking:null,
+    parkNote:"Przy stacji paliw w lewo, na parking przy porcie. Dalej plażą w lewo, aż do niezalesionej części wydmy."},
+  debina:{takeoff:{lat:54.6372,lon:17.0014},parking:{lat:54.63583,lon:17.00668},
+    parkNote:"W Dębinie w lewo na Poddąbie, ok. 500 m asfaltem, przy lesie prosto w dół leśną drogą. Auto na leśnej polanie PRZED szlabanem (za szlabanem mandaty), dalej ok. 300 m pieszo. Nie zostawiaj rzeczy na widoku, miej pompkę. Zejście na plażę schodami w bukach, kilkaset metrów na wschód."},
+  mrzezino:{takeoff:{lat:54.65107,lon:18.435921},parking:{lat:54.64868,lon:18.436691},
+    parkNote:"Lata się głównie z górki najbardziej wysuniętej na zachód."},
+  nowemarzy:{takeoff:{lat:53.4665,lon:18.648},parking:null,
+    parkNote:"Dojazd polnymi drogami – ostatni odcinek po deszczu trudny dla osobówki."},
+  orlowo:{takeoff:{lat:54.479,lon:18.5636},parking:null,
+    parkNote:"Przy mocnym wietrze lądowanie na plaży w okolicy Letniej Sceny Teatru Gdyńskiego; gdy start się nie uda – w okolicy wejścia nr 17."},
+  mechelinki:{takeoff:{lat:54.595,lon:18.52,approx:true},parking:null,parkNote:""},
+  nowe:{takeoff:{lat:53.6519,lon:18.7342},parking:{q:"osiedle Nadwiślańskie II 1a, 86-170 Nowe"},
+    parkNote:"Dojazd między blokami os. Nadwiślańskiego II; parking blisko startu, przy punkcie widokowym z wiatą."},
+  elblag:{takeoff:{q:"Aeroklub Elbląski, Lotnicza 1H, 82-300 Elbląg",approx:true},parking:null,parkNote:""},
+  borsk:{takeoff:{lat:53.9518,lon:17.9431,approx:true},parking:null,
+    parkNote:"W Borsku przy zatoczce autobusowej w stronę Stacji Bąk, po ok. 2 km w lewo – dojeżdża się na wschodni kraniec pasa. Pinezka startowiska = środek pasa."}
+};
+function mapsUrl(p){const q=p.q?p.q:p.lat.toFixed(5)+","+p.lon.toFixed(5);
+  return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);}
+function placeLinks(id){
+  const pl=PLACES[id]||{};
+  const btn=(p,label)=>p?`<a class="maplink" href="${mapsUrl(p)}" target="_blank" rel="noopener">${label}${p.approx?" <small>(przybliżone)</small>":""}</a>`
+    :`<span class="maplink off">${label} <small>– do uzupełnienia</small></span>`;
+  return `<div class="maps">${btn(pl.takeoff,"📍 Startowisko")}${btn(pl.parking,"🅿️ Parking")}</div>`+(pl.parkNote?`<p class="parknote">${pl.parkNote}</p>`:"");
+}
 
 /* ---------- skrzydła ---------- */
 /* Wymagania samej miejscówki – obowiązują przy każdym skrzydle (wydma potrzebuje mocniejszego wiatru, hol w Borsku ma limit). */
@@ -437,7 +479,7 @@ function renderDetail(){
   </div>`;
   if(ev.reasons.length&&ev.status!=="go"){html+=`<div><span class="eyebrow">Co przeszkadza</span><ul class="reasons">${ev.reasons.slice(0,4).map(r=>"<li>"+r+"</li>").join("")}</ul></div>`;}
   if(ev.hours.length)html+=`<div class="chart">${chartSVG(spot,ev)}</div>`;
-  html+=`<div class="notes">${spot.note}</div>`;
+  html+=placeLinks(spot.id)+`<div class="notes">${spot.note}</div>`;
   if(ev.hours.length){
     html+=`<details><summary>Tabela godzinowa</summary><div class="chart"><table class="hours"><thead><tr><th>Godz.</th><th>Kier.</th><th>Średni</th><th>Poryw</th><th>Opad</th><th>Chm.</th><th>Uwagi</th></tr></thead><tbody>`;
     for(const x of ev.hours){const cl=x.s===0?"go":x.s===1?"warn":"no";
