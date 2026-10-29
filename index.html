@@ -451,7 +451,8 @@ function chartSVG(spot,ev){
   hs.forEach((x,i)=>{const col=x.s===0?"var(--go)":x.s===1?"var(--warn)":"var(--no)";
     s+=`<rect x="${X(i)-step/2+1}" y="${H-bot+8}" width="${step-2}" height="8" rx="2" fill="${col}" fill-opacity="${x.past?0.25:0.9}"/>`;
     s+=`<text x="${X(i)}" y="${H-bot+32}" text-anchor="middle">${x.h}:00</text>`;});
-  s+=`<text x="${pl}" y="${H-(ideal!=null?6:22)}">m/s:  — średni   - - porywy${hs.some(x=>x.r.gustEst)?" (puste kółko = szacowane)":""}   ▮ opad   ▲ kierunek: dokąd wieje</text>`;
+  s+=`<text x="${pl}" y="${H-6}">m/s:  — średni   - - porywy${hs.some(x=>x.r.gustEst)?" (puste kółko = szacowane)":""}   ▮ opad   ▲ kierunek: dokąd wieje</text>`;
+  if(ideal==null)s+=`<text x="${pl}" y="${H-22}">kierunek dowolny – ta miejscówka nie ma idealnego kierunku wiatru</text>`;
   if(ideal!=null)s+=`<g transform="translate(${pl+5},${H-26}) rotate(${ideal+180}) scale(.8)"><path d="${ARR}" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/></g><text x="${pl+14}" y="${H-22}">idealnie ${dirName(ideal)} ${Math.round(ideal)}° – obrys po lewej i za strzałkami</text>`;
   return s+"</svg>";
 }
