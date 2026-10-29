@@ -102,6 +102,11 @@ button.cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .fact{border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:0}
 .fact .v{font-family:var(--font-data);font-size:1rem;font-variant-numeric:tabular-nums}
 .reasons{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.badges{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:6px}
+.badge{display:inline-flex;align-items:center;gap:6px;font:600 .95rem var(--font-display);letter-spacing:.03em;padding:5px 12px;border-radius:999px;border:1px solid}
+.badge.no{background:var(--no-bg);color:var(--no);border-color:var(--no)}
+.badge.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-bd)}
+.badge.na{background:var(--cell);color:var(--muted);border-color:var(--line)}
 .chart{width:100%;overflow-x:auto}
 .chart svg{display:block;width:100%;min-width:520px;height:auto}
 .chart text{font-family:var(--font-data);font-size:11px;fill:var(--muted)}
@@ -324,15 +329,16 @@ function dirCheck(spot,deg){
 }
 function evalHour(spot,w,r){
   const L=limitsFor(spot,w);const issues=[];let s=0;
-  const add=(lvl,txt)=>{if(lvl>0){issues.push({lvl,txt});s=Math.max(s,lvl);}};
-  const dc=dirCheck(spot,r.dir);add(dc,dc===2?"kierunek "+dirName(r.dir)+" – startowisko nie działa":"kierunek "+dirName(r.dir)+" na granicy");
-  if(r.ws<L.min)add(r.ws<L.min-0.5?2:1,"za słabo");
-  if(r.ws>L.max)add(r.ws>L.max+0.5?2:1,"za mocno dla "+esc(w.name));
-  if(r.gust>L.gust)add(r.gust>L.gust+0.5?2:1,"porywy ponad "+f1(L.gust)+" m/s");
-  if(r.gust-r.ws>L.spread)add(r.gust-r.ws>L.spread+0.5?2:1,"duża różnica poryw − średnia");
-  if(r.pr!=null){if(r.pr>0.3)add(2,"opady");else if(r.pr>0.05)add(1,"możliwa mżawka");}
-  if(r.th!=null){if(r.th>10)add(2,"ryzyko burzy");else if(r.th>3)add(1,"małe ryzyko burzy");}
-  if(spot.thermal&&r.cloud>85)add(1,"pełne zachmurzenie – brak termiki");
+  // k = rodzaj problemu (do plakietek w „Co przeszkadza”), txt = opis w tabeli godzinowej
+  const add=(lvl,txt,k)=>{if(lvl>0){issues.push({lvl,txt,k});s=Math.max(s,lvl);}};
+  const dc=dirCheck(spot,r.dir);add(dc,dc===2?"kierunek "+dirName(r.dir)+" – startowisko nie działa":"kierunek "+dirName(r.dir)+" na granicy","dir");
+  if(r.ws<L.min)add(r.ws<L.min-0.5?2:1,"za słabo","weak");
+  if(r.ws>L.max)add(r.ws>L.max+0.5?2:1,"za mocno dla "+esc(w.name),"strong");
+  if(r.gust>L.gust)add(r.gust>L.gust+0.5?2:1,"porywy ponad "+f1(L.gust)+" m/s","gust");
+  if(r.gust-r.ws>L.spread)add(r.gust-r.ws>L.spread+0.5?2:1,"duża różnica poryw − średnia","spread");
+  if(r.pr!=null){if(r.pr>0.3)add(2,"opady","rain");else if(r.pr>0.05)add(1,"możliwa mżawka","rain");}
+  if(r.th!=null){if(r.th>10)add(2,"ryzyko burzy","storm");else if(r.th>3)add(1,"małe ryzyko burzy","storm");}
+  if(spot.thermal&&r.cloud>85)add(1,"pełne zachmurzenie – brak termiki","cloud");
   return {s,issues};
 }
 function buildSeries(spot){
@@ -374,11 +380,11 @@ function evalDay(spot,cls,series,key,idx){
   else if(best&&best.end-best.start>=2){status="go";win=best;}
   else if(best||(bestM&&bestM.end-bestM.start>=2)){status="warn";win=best&&(!bestM||best.end-best.start>=2)?best:bestM;}
   else status="no";
-  if(spot.thermal&&status==="go"&&(di.m>=10||di.m<=3))status="warn";
+  let season=false;if(spot.thermal&&status==="go"&&(di.m>=10||di.m<=3)){status="warn";season=true;}
   const counts={};for(const x of live)for(const i of x.issues){counts[i.txt]=(counts[i.txt]||0)+(i.lvl===2?2:1);}
   const reasons=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
   const any6=live.some(x=>x.r.res===6),anyEst=live.some(x=>x.r.gustEst);
-  return {status,win,hours,live,reasons,sun:sn,any6,anyEst,di};
+  return {status,win,hours,live,reasons,sun:sn,any6,anyEst,di,season};
 }
 
 /* ---------- render ---------- */
@@ -485,7 +491,7 @@ function renderDetail(){
     <div class="fact"><span class="eyebrow">Słońce</span><div class="v">${fmtH(ev.sun.rise)}–${fmtH(ev.sun.set)}</div></div>
     <div class="fact"><span class="eyebrow">Pewność</span><div class="v">${c[0]}${ev.anyEst?", porywy szac.":""}</div></div>
   </div>`;
-  if(ev.reasons.length&&ev.status!=="go"){html+=`<div><span class="eyebrow">Co przeszkadza</span><ul class="reasons">${ev.reasons.slice(0,4).map(r=>"<li>"+r+"</li>").join("")}</ul></div>`;}
+  if(ev.status!=="go"){const b=badges(ev);if(b)html+=`<div><span class="eyebrow">Co przeszkadza</span><div class="badges">${b}</div></div>`;}
   if(ev.hours.length)html+=`<div class="chart">${chartSVG(spot,ev)}</div>`;
   html+=placeLinks(spot.id)+`<div class="notes">${spot.note}</div>`;
   if(WING.id==="parakite"&&PARAKITE[spot.id])html+=`<div class="notes">Parakite: tylko gładki, laminarny wiatr. Przy porywach i termice skrzydło zachowuje się nieprzewidywalnie – progi są szacunkowe.</div>`;
@@ -496,6 +502,20 @@ function renderDetail(){
     html+=`</tbody></table></div>${ev.anyEst?'<p class="muted" style="font-size:.8rem;margin:6px 0 0">* poryw szacowany jako 1,6 × średni wiatr (brak danych godzinowych).</p>':""}</details>`;
   }
   box.innerHTML=html;
+}
+/* Plakietki „Co przeszkadza”: czerwone = nie da się, pomarańczowe = na granicy (doświadczony pilot jeszcze sobie poradzi).
+   Liczą się godziny okna, a gdy okna nie ma – wszystkie godziny dnia. */
+const BADGE={dir:["zły kierunek wiatru","kierunek na granicy"],weak:["za słabo","słabo – na granicy"],strong:["za mocno","mocno – na granicy"],
+  gust:["za silne porywy","porywy na granicy"],spread:["za duża różnica porywów","różnica porywów na granicy"],
+  rain:["opady","możliwa mżawka"],storm:["ryzyko burzy","małe ryzyko burzy"],cloud:[null,"brak termiki"]};
+function badges(ev){
+  if(ev.na)return `<span class="badge na">${ev.reasons[0]}</span>`;
+  const src=ev.win?ev.live.filter(x=>x.h>=ev.win.start&&x.h<ev.win.end):ev.live;
+  const agg={};
+  for(const x of src)for(const i of x.issues){const a=agg[i.k]||(agg[i.k]={lvl:0,n:0});a.lvl=Math.max(a.lvl,i.lvl);a.n++;}
+  return Object.entries(agg).sort((a,b)=>b[1].lvl-a[1].lvl||b[1].n-a[1].n).slice(0,5)
+    .map(([k,a])=>`<span class="badge ${a.lvl===2?"no":"warn"}">${a.lvl===2?"✕":"!"} ${BADGE[k][a.lvl===2?0:1]}</span>`).join("")
+    +(ev.season?'<span class="badge warn">! słaba termika (październik–marzec)</span>':"");
 }
 function i18day(di,idx){return (idx===0?"dziś, ":"")+DOWL[di.dow].toLowerCase()+" "+di.label;}
 
