@@ -77,6 +77,10 @@ button.cell{width:100%;min-height:46px;border:1px solid transparent;border-radiu
   background:var(--cell)}
 button.cell .s{font-family:var(--font-display);font-weight:700;font-size:1.05rem;line-height:1}
 button.cell .w{font-family:var(--font-data);font-size:.66rem;font-variant-numeric:tabular-nums}
+button.cell{position:relative}
+button.cell .drop{position:absolute;top:3px;right:4px;width:10px;height:13px}
+button.cell .drop.no{color:var(--no)}
+button.cell .drop.wet{color:#2f80ed}
 button.cell.go{background:var(--go-bg);border-color:var(--go-bd)}
 button.cell.go .s{color:var(--go)}
 button.cell.warn{background:var(--warn-bg);border-color:var(--warn-bd)}
@@ -112,6 +116,7 @@ button.cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .badge{display:inline-flex;align-items:center;gap:6px;font:600 .95rem var(--font-display);letter-spacing:.03em;padding:5px 12px;border-radius:999px;border:1px solid}
 .badge.no{background:var(--no-bg);color:var(--no);border-color:var(--no)}
 .badge.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-bd)}
+.badge.wet{background:rgba(47,128,237,.14);color:#2f80ed;border-color:rgba(47,128,237,.5)}
 .badge.na{background:var(--cell);color:var(--muted);border-color:var(--line)}
 .chart{width:100%;overflow-x:auto}
 .chart svg{display:block;width:100%;min-width:520px;height:auto}
@@ -234,7 +239,7 @@ const SPOTS=[
  {id:"nowe",grp:"Wiatr ze wschodu",name:"Nowe",type:"skarpa nad Wisłą 40 m",lat:53.652,lon:18.735,dir:[80,110],tol:20,
   A:{min:4,max:7,gust:8.5,spread:3},B:{min:4,max:8,gust:9.5,spread:4},
   note:"Trudny start z półki kilka metrów pod krawędzią. Duże lądowisko u podnóża, toplanding tylko dla doświadczonych. Wiatr z zachodu = rotor za skarpą. Sprawdź, czy obowiązuje opłata (flykarta)."},
- {id:"starogrod",grp:"Wiatr z zachodu",name:"Starogród",type:"skarpa nad Wisłą 66 m",lat:53.2954,lon:18.3773,dir:[240,285],tol:15,
+ {id:"starogrod",grp:"Wiatr z zachodu",name:"Starogród",type:"skarpa nad Wisłą 66 m",lat:53.2954,lon:18.3773,dir:[225,280],tol:15,
   A:{min:4.5,max:7,gust:8.5,spread:3},B:{min:4.5,max:8,gust:9.5,spread:4},
   note:"ATZ Watorowo: przed startem zadzwoń na wieżę (Adriana Aviation 566 864 956, 601 665 145, 502 660 278, 695 408 154) i zgłoś loty do AMC Polska (22 574 57 33). Do 100 m QFE bez radia, tylko wzdłuż klifu N–S; wyżej obowiązkowo 118,725 MHz. Toplanding ciasny, z rotorami – łatwe lądowanie na łące u podnóża. Nie niszcz pola za startem. Wąskie noszenie – nie wyprzedzaj, zawracaj."},
  {id:"elblag",grp:"Inne",name:"GH Elbląg",type:"lotnisko, ground handling",lat:54.16,lon:19.42,dir:null,
@@ -369,6 +374,25 @@ function buildSeries(spot){
 }
 const nowTs=Date.now()/1000;const nowLp=localParts(nowTs);
 function dayKeys(){const out=[];for(let i=0;i<7;i++){const d=new Date(Date.UTC(nowLp.y,nowLp.m-1,nowLp.d+i));out.push(d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"));}return out;}
+/* ---------- podłoże: mokro po deszczu ----------
+   Pomiar IMGW (tylko dziś) + prognozowany opad w 12 h przed daną godziną.
+   Czerwona kropelka (nie latamy): pomiar ≥ 1 mm albo prognoza ≥ 3 mm. Niebieska (decyzja pilota): pomiar ≥ 0,5 mm albo prognoza ≥ 1 mm.
+   Wydmy (Stegna, Krynica) pomijamy – piasek nie robi błota. */
+const IMGW_ST={chlapowo:"Hel",jastrzebia:"Hel",debina:"Ustka",mrzezino:"Gdańsk",orlowo:"Gdańsk",mechelinki:"Gdańsk",
+  nowemarzy:"Toruń",nowe:"Toruń",starogrod:"Toruń",elblag:"Elbląg",borsk:"Chojnice"};
+let OBS=null;
+async function loadObs(){
+  try{const r=await fetch("https://danepubliczne.imgw.pl/api/data/synop");if(!r.ok)return;
+    const o={};for(const x of await r.json())o[x.stacja]={mm:x.suma_opadu==null?null:parseFloat(x.suma_opadu),date:x.data_pomiaru,hour:+x.godzina_pomiaru};
+    OBS=o;renderGrid();renderDetail();}catch(e){}
+}
+function wetAt(spot,series,key,idx,r){
+  const st=IMGW_ST[spot.id];if(!st)return null;
+  let fc=0;for(let k=1;k<=12;k++){const lp=localParts(r.t-k*3600);const q=series[lp.key+"|"+lp.h];if(q&&q.pr)fc+=q.pr;}
+  const o=idx===0&&OBS&&OBS[st]&&OBS[st].date===key&&OBS[st].mm!=null?OBS[st].mm:null;
+  const lvl=(o!=null&&o>=1)||fc>=3?2:(o!=null&&o>=0.5)||fc>=1?1:0;
+  return {lvl,fc:Math.round(fc*10)/10,obs:o,st};
+}
 function evalDay(spot,cls,series,key,idx){
   const di=dayInfo(key);const sn=sun(di.y,di.m,di.d,spot.lat,spot.lon);
   if(!limitsFor(spot,cls))return {status:"none",win:null,hours:[],live:[],reasons:[esc(cls.name)+" nie do termiki – tu nie oceniamy"],sun:sn,any6:false,anyEst:false,di,na:true};
@@ -378,7 +402,9 @@ function evalDay(spot,cls,series,key,idx){
     const r=series&&series[key+"|"+h];if(!r)continue;
     const past=idx===0&&(h+1)<=nowLp.h;
     const e=evalHour(spot,cls,r);
-    hours.push({h,r,past,...e});
+    const wet=wetAt(spot,series,key,idx,r);
+    if(wet&&wet.lvl===2){e.issues.push({lvl:2,txt:"mokro po deszczu",k:"wet"});e.s=2;}
+    hours.push({h,r,past,wet,...e});
   }
   const live=hours.filter(x=>!x.past);
   let best=null,cur=null,bestM=null,curM=null;
@@ -395,7 +421,10 @@ function evalDay(spot,cls,series,key,idx){
   const counts={};for(const x of live)for(const i of x.issues){counts[i.txt]=(counts[i.txt]||0)+(i.lvl===2?2:1);}
   const reasons=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
   const any6=live.some(x=>x.r.res===6),anyEst=live.some(x=>x.r.gustEst);
-  return {status,win,hours,live,reasons,sun:sn,any6,anyEst,di,season};
+  // podłoże: najgorszy stan w godzinach, które jeszcze przed nami (pomiar IMGW jest wspólny dla całego dnia)
+  const wsrc=win?live.filter(x=>x.h>=win.start&&x.h<win.end):live; // gdy jest okno – liczy się podłoże w oknie
+  let wet=null;for(const x of wsrc)if(x.wet&&(!wet||x.wet.lvl>wet.lvl||(x.wet.lvl===wet.lvl&&x.wet.fc>wet.fc)))wet=x.wet;
+  return {status,win,hours,live,reasons,sun:sn,any6,anyEst,di,season,wet};
 }
 
 /* ---------- render ---------- */
@@ -422,8 +451,8 @@ function renderGrid(){
       const ev=evalDay(s,WING,SERIES[s.id],k,i);
       const w=ev.win?`${ev.win.start}–${ev.win.end}`:(ev.status==="none"?"":"—");
       const sel=SEL&&SEL.s===s.id&&SEL.k===k;
-      const lab=`${s.name}, ${i===0?"dziś":DOWL[ev.di.dow]} ${ev.di.label}: ${VERD[ev.status]}${ev.win?", okno "+w:""}`;
-      h+=`<td class="${i>=3?"far":""}"><div class="cellwrap"><button type="button" class="cell ${ev.status}" data-s="${s.id}" data-k="${k}" aria-pressed="${sel?"true":"false"}" aria-label="${lab}" ${ev.status==="none"?"":""}><span class="s">${SYM[ev.status]}</span><span class="w">${w}</span></button></div></td>`;
+      const lab=`${s.name}, ${i===0?"dziś":DOWL[ev.di.dow]} ${ev.di.label}: ${VERD[ev.status]}${ev.win?", okno "+w:""}${ev.wet&&ev.wet.lvl?(ev.wet.lvl===2?", mokro po deszczu":", możliwe mokro"):""}`;
+      h+=`<td class="${i>=3?"far":""}"><div class="cellwrap"><button type="button" class="cell ${ev.status}" data-s="${s.id}" data-k="${k}" aria-pressed="${sel?"true":"false"}" aria-label="${lab}" ${ev.status==="none"?"":""}>${ev.wet&&ev.wet.lvl?`<svg class="drop ${ev.wet.lvl===2?"no":"wet"}" viewBox="0 0 10 13" aria-hidden="true"><path d="M5 0C5 0 0 6 0 8.5a5 5 0 0 0 10 0C10 6 5 0 5 0z" fill="currentColor"/></svg>`:""}<span class="s">${SYM[ev.status]}</span><span class="w">${w}</span></button></div></td>`;
     });
     h+="</tr>";
   }
@@ -500,16 +529,17 @@ function renderDetail(){
     <div class="fact"><span class="eyebrow">Działa przy</span><div class="v">${spot.dir?dirName(spot.dir[0])+"–"+dirName(spot.dir[1])+" ("+spot.dir[0]+"–"+spot.dir[1]+"°)":"każdym kierunku"}</div></div>
     <div class="fact"><span class="eyebrow">Progi ${esc(WING.name)}${WING.perSpot?" (szacunkowe)":""}</span><div class="v">${L.min==null?"nie dotyczy":`${f1(L.min)}–${f1(L.max)} m/s, por. ${f1(L.gust)}`}</div></div>
     <div class="fact"><span class="eyebrow">Słońce</span><div class="v">${fmtH(ev.sun.rise)}–${fmtH(ev.sun.set)}</div></div>
+    ${ev.wet?`<div class="fact"><span class="eyebrow">Podłoże</span><div class="v">${["sucho","możliwe mokro","mokro"][ev.wet.lvl]}</div><div class="muted" style="font-size:.78rem">${ev.wet.obs!=null?"IMGW "+ev.wet.st+": "+f1(ev.wet.obs)+" mm · ":""}prognoza 12 h: ${f1(ev.wet.fc)} mm</div></div>`:""}
     <div class="fact"><span class="eyebrow">Pewność</span><div class="v">${c[0]}${ev.anyEst?", porywy szac.":""}</div></div>
   </div>`;
-  if(ev.status!=="go"){const b=badges(ev);if(b)html+=`<div><span class="eyebrow">Co przeszkadza</span><div class="badges">${b}</div></div>`;}
+  {const b=ev.status!=="go"?badges(ev):(ev.wet&&ev.wet.lvl===1?'<span class="badge wet">💧 możliwe mokro po deszczu</span>':"");if(b)html+=`<div><span class="eyebrow">Co przeszkadza</span><div class="badges">${b}</div></div>`;}
   if(ev.hours.length)html+=`<div class="chart">${chartSVG(spot,ev)}</div>`;
   html+=placeLinks(spot.id)+`<div class="notes">${spot.note}</div>`;
   if(WING.id==="parakite"&&PARAKITE[spot.id])html+=`<div class="notes">Parakite: tylko gładki, laminarny wiatr. Przy porywach i termice skrzydło zachowuje się nieprzewidywalnie – progi są szacunkowe.</div>`;
   if(ev.hours.length){
     html+=`<details><summary>Tabela godzinowa</summary><div class="chart"><table class="hours"><thead><tr><th>Godz.</th><th>Kier.</th><th>Średni</th><th>Poryw</th><th>Opad</th><th>Chm.</th><th>Uwagi</th></tr></thead><tbody>`;
     for(const x of ev.hours){const cl=x.s===0?"go":x.s===1?"warn":"no";
-      html+=`<tr${x.past?' class="muted"':""}><td><span class="dot ${cl}"></span>${x.h}:00</td><td>${dirName(x.r.dir)} ${x.r.dir}°</td><td>${f1(x.r.ws)}</td><td>${f1(x.r.gust)}${x.r.gustEst?"*":""}</td><td>${x.r.pr==null?"–":f1(x.r.pr)}</td><td>${x.r.cloud}%</td><td style="text-align:left">${x.past?"minęło":x.issues.map(i=>i.txt).join(", ")}</td></tr>`;}
+      html+=`<tr${x.past?' class="muted"':""}><td><span class="dot ${cl}"></span>${x.h}:00</td><td>${dirName(x.r.dir)} ${x.r.dir}°</td><td>${f1(x.r.ws)}</td><td>${f1(x.r.gust)}${x.r.gustEst?"*":""}</td><td>${x.r.pr==null?"–":f1(x.r.pr)}</td><td>${x.r.cloud}%</td><td style="text-align:left">${x.past?"minęło":x.issues.map(i=>i.txt).concat(x.wet&&x.wet.lvl===1?["możliwe mokro"]:[]).join(", ")}</td></tr>`;}
     html+=`</tbody></table></div>${ev.anyEst?'<p class="muted" style="font-size:.8rem;margin:6px 0 0">* poryw szacowany jako 1,6 × średni wiatr (brak danych godzinowych).</p>':""}</details>`;
   }
   box.innerHTML=html;
@@ -518,15 +548,16 @@ function renderDetail(){
    Liczą się godziny okna, a gdy okna nie ma – wszystkie godziny dnia. */
 const BADGE={dir:["zły kierunek wiatru","kierunek na granicy"],weak:["za słabo","słabo – na granicy"],strong:["za mocno","mocno – na granicy"],
   gust:["za silne porywy","porywy na granicy"],spread:["za duża różnica porywów","różnica porywów na granicy"],
-  rain:["opady","możliwa mżawka"],storm:["ryzyko burzy","małe ryzyko burzy"],cloud:[null,"brak termiki"]};
+  rain:["opady","możliwa mżawka"],storm:["ryzyko burzy","małe ryzyko burzy"],cloud:[null,"brak termiki"],wet:["mokro po deszczu",null]};
 function badges(ev){
   if(ev.na)return `<span class="badge na">${ev.reasons[0]}</span>`;
   const src=ev.win?ev.live.filter(x=>x.h>=ev.win.start&&x.h<ev.win.end):ev.live;
   const agg={};
   for(const x of src)for(const i of x.issues){const a=agg[i.k]||(agg[i.k]={lvl:0,n:0});a.lvl=Math.max(a.lvl,i.lvl);a.n++;}
   return Object.entries(agg).sort((a,b)=>b[1].lvl-a[1].lvl||b[1].n-a[1].n).slice(0,5)
-    .map(([k,a])=>`<span class="badge ${a.lvl===2?"no":"warn"}">${a.lvl===2?"✕":"!"} ${BADGE[k][a.lvl===2?0:1]}</span>`).join("")
-    +(ev.season?'<span class="badge warn">! słaba termika (październik–marzec)</span>':"");
+    .map(([k,a])=>`<span class="badge ${a.lvl===2?"no":"warn"}">${k==="wet"?"💧":a.lvl===2?"✕":"!"} ${BADGE[k][a.lvl===2?0:1]}</span>`).join("")
+    +(ev.season?'<span class="badge warn">! słaba termika (październik–marzec)</span>':"")
+    +(ev.wet&&ev.wet.lvl===1?'<span class="badge wet">💧 możliwe mokro po deszczu</span>':"");
 }
 function i18day(di,idx){return (idx===0?"dziś, ":"")+DOWL[di.dow].toLowerCase()+" "+di.label;}
 
@@ -582,12 +613,13 @@ async function refreshForecast(){
   const spots=Object.assign({},DATA&&DATA.spots,Object.fromEntries(ok));
   DATA={generated:new Date().toISOString(),demo:false,spots};
   for(const s of SPOTS)SERIES[s.id]=buildSeries(s);
-  showMeta();renderGrid();renderDetail();
+  showMeta();renderGrid();renderDetail();loadObs();
   if(ok.length<SPOTS.length)upd.textContent+=` (bez ${SPOTS.length-ok.length} miejscówek)`;
 }
 document.getElementById("refresh").addEventListener("click",refreshForecast);
 showMeta();
 setWing(WANT,false);
+loadObs();
 })();
 </script>
 
