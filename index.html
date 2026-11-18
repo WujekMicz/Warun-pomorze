@@ -158,7 +158,7 @@ footer a{color:var(--accent)}
     <div class="lead">
       <span class="eyebrow">Prognoza paralotniowa · Pomorze</span>
       <h1>Warun Pomorze</h1>
-      <p>Klify, wydmy i skarpy na wiatr z północy, południa i wschodu – 7 dni. Kliknij pole, żeby zobaczyć godziny.</p>
+      <p>Klify, wydmy i skarpy na wiatr z każdej strony – 7 dni. Kliknij pole, żeby zobaczyć godziny.</p>
     </div>
     <div class="ctrl">
       <span class="eyebrow">Skrzydło</span>
@@ -228,6 +228,9 @@ const SPOTS=[
  {id:"nowe",grp:"Wiatr ze wschodu",name:"Nowe",type:"skarpa nad Wisłą 40 m",lat:53.652,lon:18.735,dir:[80,110],tol:20,
   A:{min:4,max:7,gust:8.5,spread:3},B:{min:4,max:8,gust:9.5,spread:4},
   note:"Trudny start z półki kilka metrów pod krawędzią. Duże lądowisko u podnóża, toplanding tylko dla doświadczonych. Wiatr z zachodu = rotor za skarpą. Sprawdź, czy obowiązuje opłata (flykarta)."},
+ {id:"starogrod",grp:"Wiatr z zachodu",name:"Starogród",type:"skarpa nad Wisłą 66 m",lat:53.2954,lon:18.3773,dir:[240,285],tol:15,
+  A:{min:4.5,max:7,gust:8.5,spread:3},B:{min:4.5,max:8,gust:9.5,spread:4},
+  note:"ATZ Watorowo: przed startem zadzwoń na wieżę (Adriana Aviation 566 864 956, 601 665 145, 502 660 278, 695 408 154) i zgłoś loty do AMC Polska (22 574 57 33). Do 100 m QFE bez radia, tylko wzdłuż klifu N–S; wyżej obowiązkowo 118,725 MHz. Toplanding ciasny, z rotorami – łatwe lądowanie na łące u podnóża. Nie niszcz pola za startem. Wąskie noszenie – nie wyprzedzaj, zawracaj."},
  {id:"elblag",grp:"Inne",name:"GH Elbląg",type:"lotnisko, ground handling",lat:54.16,lon:19.42,dir:null,
   A:{min:2,max:7,gust:9,spread:3.5},B:{min:2,max:8,gust:10,spread:4.5},
   note:"Potrzebna zgoda zarządzającego lotniskiem. Uważaj na ruch innych statków powietrznych. Mokre skrzydło jest ciężkie – lepiej przy suchej trawie."},
@@ -259,6 +262,8 @@ const PLACES={
   mechelinki:{takeoff:{lat:54.595,lon:18.52,approx:true},parking:null,parkNote:""},
   nowe:{takeoff:{lat:53.6519,lon:18.7342},parking:{q:"osiedle Nadwiślańskie II 1a, 86-170 Nowe"},
     parkNote:"Dojazd między blokami os. Nadwiślańskiego II; parking blisko startu, przy punkcie widokowym z wiatą."},
+  starogrod:{takeoff:{lat:53.2954,lon:18.3773},parking:null,
+    parkNote:"Z Unisławia w stronę Chełmna, za drogowskazem na Starogród w lewo, przez Kiełp. Za drugim drogowskazem „Starogród 2 km” tuż przed zabudowaniami po lewej w polną drogę prosto na startowisko. Powrót z lądowiska u podnóża ścieżką od tablicy „Rezerwat Przyrody Wzgórza Płutowskie”."},
   elblag:{takeoff:{q:"Aeroklub Elbląski, Lotnicza 1H, 82-300 Elbląg",approx:true},parking:null,parkNote:""},
   borsk:{takeoff:{lat:53.9518,lon:17.9431,approx:true},parking:null,
     parkNote:"W Borsku przy zatoczce autobusowej w stronę Stacji Bąk, po ok. 2 km w lewo – dojeżdża się na wschodni kraniec pasa. Pinezka startowiska = środek pasa."}
@@ -274,14 +279,14 @@ function placeLinks(id){
 
 /* ---------- skrzydła ---------- */
 /* Wymagania samej miejscówki – obowiązują przy każdym skrzydle (wydma potrzebuje mocniejszego wiatru, hol w Borsku ma limit). */
-const SITE={chlapowo:{min:4},jastrzebia:{min:4},stegna:{min:6},krynica:{min:6},debina:{min:5},mrzezino:{min:3},nowemarzy:{min:5},orlowo:{min:5},mechelinki:{min:5},nowe:{min:4},
+const SITE={chlapowo:{min:4},jastrzebia:{min:4},stegna:{min:6},krynica:{min:6},debina:{min:5},mrzezino:{min:3},nowemarzy:{min:5},orlowo:{min:5},mechelinki:{min:5},nowe:{min:4},starogrod:{min:4.5},
   elblag:{min:2},borsk:{min:1,max:5,gust:7}};
 for(const s of SPOTS)s.site=SITE[s.id];
 /* EN-A i EN-B mają progi dobrane osobno dla każdej miejscówki (spot.A, spot.B). Pozostałe skrzydła: min/max/porywy/różnica. */
 /* Parakite: małe, szybkie skrzydło do mocnego, GŁADKIEGO wiatru – progi osobno dla każdej miejscówki (szacunkowe).
    [min, max, poryw maks., różnica poryw−średni] w m/s; brak wpisu = Parakite tu nie oceniamy (termika). */
 const PARAKITE={chlapowo:[6,12,14.5,3],jastrzebia:[6,12,14.5,3],debina:[6,12,14.5,3],stegna:[7,12,14.5,3],krynica:[7,12,14.5,3],
-  mrzezino:[5,8,10.5,3],nowemarzy:[6,10,12.5,3],orlowo:[6,12,14.5,3],mechelinki:[6,12,14.5,3],nowe:[6,10,12.5,3],elblag:[3,11,13.5,4]};
+  mrzezino:[5,8,10.5,3],nowemarzy:[6,10,12.5,3],orlowo:[6,12,14.5,3],mechelinki:[6,12,14.5,3],nowe:[6,10,12.5,3],starogrod:[6,10,12.5,3],elblag:[3,11,13.5,4]};
 /* min/max/gust/spread Parakite = wartości z klifów, używane tylko przy „Kopiuj z” w formularzu własnego skrzydła */
 const PRESETS=[{id:"A",name:"EN-A"},{id:"B",name:"EN-B"},
   {id:"parakite",name:"Parakite",min:6,max:12,gust:14.5,spread:3,perSpot:true}];
