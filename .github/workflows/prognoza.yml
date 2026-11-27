@@ -20,11 +20,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  # Budowanie i publikacja są w osobnych jobach: gdy były w jednym, deploy-pages
+  # czasem pytał o paczkę „github-pages” ułamek sekundy po jej wgraniu,
+  # zanim GitHub ją widział, i run kończył się błędem „No artifacts named github-pages”.
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,5 +47,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
